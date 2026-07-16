@@ -33,7 +33,7 @@ class EnemyMob {
         // Power state
         this.power = null;
         this.powerTimer = 0;
-        this.powerCooldown = Utils.randomRange(2, 5);
+        this.powerCooldown = Utils.randomRange(0.5, 2); // FIX: faster first power use
         this.powerActive = false;
         this.shieldActive = false;
         this.rageActive = false;
@@ -158,10 +158,17 @@ class EnemyMob {
         
         for (let i = this.units.length - 1; i >= 0 && visualRemoves > 0; i--) {
             if (this.units[i].alive) {
-                this.units[i].alive = false;
-                this.units[i].targetScale = 0;
+                const u = this.units[i];
+                u.alive = false;
+                u.targetScale = 0;
+                // Death burst: fly backward (away from camera, enemy side)
+                u.deathVx = Utils.randomRange(-10, 10);
+                u.deathVz = Utils.randomRange(-25, -8);
+                u.deathVy = Utils.randomRange(8, 18);
+                u.deathSpin = Utils.randomRange(-8, 8);
                 visualRemoves--;
                 removed++;
+                this.count = Math.max(0, this.count - 1);
             }
         }
         const remainingToRemove = Math.min(amount - removed, this.count);
@@ -180,6 +187,7 @@ class EnemyMob {
             u.phase += u.speed * dt;
             
             if (u.alive) {
+                // Bobbing hop animation
                 u.mesh.position.y = Math.abs(Math.sin(u.phase)) * 2;
                 
                 let spreadScale = Math.min(1 + Math.sqrt(Math.min(this.count, 2000)) * 0.05, 1.8);
@@ -189,19 +197,41 @@ class EnemyMob {
 
                 if (game && game.state === 'CLASH' && this.state === 'clashing') {
                     if (u.ringAngle === undefined) u.ringAngle = Math.atan2(u.oz, u.ox);
-                    u.ringAngle -= dt * 3.5;
-                    const ringRadius = 5 + spreadScale * 2 + Math.random() * 3;
-                    tx = Math.cos(u.ringAngle) * ringRadius;
-                    tz = Math.sin(u.ringAngle) * ringRadius;
+                    u.ringAngle -= dt * 8.0; // fast counterclockwise
+                    const orbitRadius = 9;
+                    // Small offset so circles heavily overlap — fighting in shared space
+                    tx = Math.cos(u.ringAngle) * orbitRadius;
+                    tz = (-orbitRadius * 0.2) + Math.sin(u.ringAngle) * orbitRadius;
+                    // Attack lunge: scale up + jump high when lunging into crowd space
+                    const attacking = Math.sin(u.ringAngle) > 0.45;
+                    u.targetScale = attacking ? 1.3 : 1.0;
+                    u.mesh.position.y = attacking
+                        ? Math.abs(Math.sin(u.phase)) * 5 + 2.5
+                        : Math.abs(Math.sin(u.phase)) * 2;
+                    // Face toward crowd (toward camera)
+                    u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, 0, 0.12);
                 } else {
                     if (u.ringAngle !== undefined) u.ringAngle = undefined;
+                    u.targetScale = 1.0;
+                    u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, 0, 0.08);
                 }
 
                 u.mesh.position.x = Utils.lerp(u.mesh.position.x, tx, 0.15);
                 u.mesh.position.z = Utils.lerp(u.mesh.position.z, tz, 0.15);
+            } else {
+                // Death burst: fly outward from center
+                if (u.deathVx !== undefined) {
+                    u.mesh.position.x += u.deathVx * dt;
+                    u.mesh.position.z += u.deathVz * dt;
+                    u.mesh.position.y += u.deathVy * dt;
+                    u.deathVy -= 30 * dt; // gravity
+                    u.deathVx *= 0.85;
+                    u.deathVz *= 0.85;
+                    u.mesh.rotation.z += u.deathSpin * dt;
+                }
             }
             
-            u.scale = Utils.lerp(u.scale, u.targetScale, 0.15);
+            u.scale = Utils.lerp(u.scale, u.targetScale, 0.18);
             u.mesh.scale.set(u.scale, u.scale, u.scale);
             
             if (!u.alive && u.scale < 0.05) {
@@ -403,11 +433,13 @@ class EnemyManager {
         while (this.clashAcc >= interval) {
             this.clashAcc -= interval;
             
-            // To ensure normal clashes take max ~1 second (18 ticks at 18fps clash rate)
-            const maxGroupSize = Math.max(mob.count, this.game.crowd.count);
-            const unitsToRemovePerTick = Math.max(1, Math.ceil(maxGroupSize / 18));
+            // FIX: each side removes based on their OWN count to keep fights balanced
+            // Enemy removes units proportional to enemy count (attacker strength)
+            const enemyTickRemove = Math.max(1, Math.ceil(mob.count / 18));
+            // Crowd damage proportional to crowd count (defender strength)
+            const crowdTickRemove = Math.max(1, Math.ceil(this.game.crowd.count / 18));
             
-            const erAmount = mob.removeAmount(unitsToRemovePerTick);
+            const erAmount = mob.removeAmount(enemyTickRemove);
             const er = erAmount > 0;
             const shielded = this.game.crowd.shielded && this.game.crowd.shieldTime > 0;
             
@@ -415,7 +447,7 @@ class EnemyManager {
             let dmg = 0;
             if (!shielded) {
                 if (Math.random() < 0.4) {
-                    dmg = this.game.crowd.clashRemoveAmount(unitsToRemovePerTick);
+                    dmg = this.game.crowd.clashRemoveAmount(crowdTickRemove);
                 }
             }
 
@@ -459,6 +491,13 @@ class EnemyManager {
         this.game.state = 'PLAYING';
         this.game.screenFx.pulseVignette('transparent', 0);
         
+        // Immediately hide 3D group so it doesn't ghost on screen
+        mob.group.visible = false;
+        // Remove from scene entirely
+        if (mob.group.parent) {
+            this.game.scene.remove(mob.group);
+        }
+        
         this.vec.setFromMatrixPosition(mob.group.matrixWorld);
         this.vec.project(this.game.camera);
         const screenY = -(this.vec.y * 0.5 - 0.5) * GC.H;
@@ -466,6 +505,7 @@ class EnemyManager {
         this.game.particles.confetti(GC.W / 2, screenY, 50);
         this.game.particles.coinExplosion(GC.W / 2, screenY, 25);
         this.game.screenFx.flash('rgba(0,255,100,0.4)', 0.5);
+        this.game.screenFx.shake(10, 0.6);
 
         const typeInfo = ENEMY_TYPES[mob.type] || ENEMY_TYPES.normal;
         if (this.game.combo) this.game.combo.addNumberPop(GC.W/2, screenY - 50, `${typeInfo.emoji} DEFEATED!`, typeInfo.headColor);

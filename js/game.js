@@ -429,19 +429,26 @@ class Game {
         }
         
         // 3D Camera Dynamic Logic & Screen Shake
-        const targetZ = this.crowd.group.position.z + 75;
-        // Zoom out based on crowd size to keep them in view
-        const crowdBonus = Math.min(this.crowd.count * 0.15, 60); 
-        const targetY = 55 + crowdBonus;
-        
-        // Follow the crowd smoothly
-        const targetX = this.crowd.group.position.x * 0.7;
+        const crowdZ = this.crowd.group.position.z;
+        let targetZ, targetY, targetX;
+
+        if (this.state === 'CLASH' || this.state === 'FORTRESS_ATTACK') {
+            // Zoom in for dramatic fight view
+            targetZ = crowdZ + 60;
+            targetY = 40;
+            targetX = this.crowd.group.position.x * 0.5;
+        } else {
+            // Standard follow-cam — fixed height so nothing disappears
+            targetZ = crowdZ + 90;
+            targetY = 70;
+            targetX = this.crowd.group.position.x * 0.7;
+        }
         
         this.camera.position.x = Utils.lerp(this.camera.position.x, targetX, 0.1);
         this.camera.position.y = Utils.lerp(this.camera.position.y, targetY, 0.1);
         this.camera.position.z = Utils.lerp(this.camera.position.z, targetZ, 0.15);
         
-        // Apply 3D Screen Shake from screenFx (which is originally 2D)
+        // Apply 3D Screen Shake from screenFx
         let cx = this.camera.position.x;
         let cy = this.camera.position.y;
         if (this.screenFx.ox !== 0 || this.screenFx.oy !== 0) {
@@ -450,10 +457,10 @@ class Game {
         }
         this.camera.position.set(cx, cy, this.camera.position.z);
         
-        // Look straight down the track ahead of the player to center them nicely
-        this.camera.lookAt(this.camera.position.x, 0, this.crowd.group.position.z - 25);
+        // Always look ahead of the crowd along the track
+        this.camera.lookAt(0, 0, crowdZ - 50);
 
-        // Simple ambient animation for city background
+        // Slide city background with camera
         this.cityGroup.position.z = this.camera.position.z - 1000;
     }
 
@@ -511,21 +518,7 @@ class Game {
 
     render() {
         // --- 1. Render 3D Scene ---
-        const crowdZ = (this.crowd && this.crowd.group) ? this.crowd.group.position.z : 0;
-        
-        // Dynamically adjust camera during clash/attack
-        if (this.state === 'CLASH' || this.state === 'FORTRESS_ATTACK') {
-            this.camera.position.y = Utils.lerp(this.camera.position.y, 40, 0.1);
-            this.camera.position.z = Utils.lerp(this.camera.position.z, crowdZ + 60, 0.1);
-            // Camera shake
-            this.camera.position.x = (Math.random() - 0.5) * 2;
-        } else {
-            this.camera.position.y = Utils.lerp(this.camera.position.y, 70, 0.1);
-            this.camera.position.z = Utils.lerp(this.camera.position.z, crowdZ + 90, 0.1);
-            this.camera.position.x = Utils.lerp(this.camera.position.x, 0, 0.1);
-        }
-        this.camera.lookAt(0, 0, crowdZ - 50);
-
+        // NOTE: Camera is fully managed in update(). Do NOT reposition here to avoid jitter.
         this.renderer.render(this.scene, this.camera);
 
         // --- 2. Render 2D UI Overlay ---

@@ -412,8 +412,14 @@ class Crowd {
         let removed = 0;
         for (let i = this.units.length - 1; i >= 0 && removed < n; i--) {
             if (this.units[i].alive) {
-                this.units[i].alive = false;
-                this.units[i].targetScale = 0;
+                const u = this.units[i];
+                u.alive = false;
+                u.targetScale = 0;
+                // Death burst: fly right (crowd side)
+                u.deathVx = Utils.randomRange(5, 20);
+                u.deathVz = Utils.randomRange(-10, 10);
+                u.deathVy = Utils.randomRange(8, 18);
+                u.deathSpin = Utils.randomRange(-8, 8);
                 removed++;
             }
         }
@@ -440,7 +446,6 @@ class Crowd {
         let removed = 0;
         let damage = 0;
         
-        // Remove up to 3 visual units per tick for visual flair
         let visualRemoves = Math.min(amount, 3);
         
         for (let i = this.units.length - 1; i >= 0 && visualRemoves > 0; i--) {
@@ -451,6 +456,11 @@ class Crowd {
                     if (u.hp <= 0) {
                         u.alive = false;
                         u.targetScale = 0;
+                        // Death burst: fly right
+                        u.deathVx = Utils.randomRange(8, 25);
+                        u.deathVz = Utils.randomRange(-12, 12);
+                        u.deathVy = Utils.randomRange(10, 22);
+                        u.deathSpin = Utils.randomRange(-6, 6);
                         this.count = Math.max(0, this.count - 1);
                         visualRemoves--;
                         removed++;
@@ -462,6 +472,11 @@ class Crowd {
                 } else {
                     u.alive = false;
                     u.targetScale = 0;
+                    // Death burst: fly forward toward camera
+                    u.deathVx = Utils.randomRange(-8, 8);
+                    u.deathVz = Utils.randomRange(10, 25);
+                    u.deathVy = Utils.randomRange(8, 16);
+                    u.deathSpin = Utils.randomRange(-8, 8);
                     this.count = Math.max(0, this.count - 1);
                     visualRemoves--;
                     removed++;
@@ -470,11 +485,10 @@ class Crowd {
             }
         }
         
-        // Subtract the rest mathematically
         const remainingToRemove = Math.min(amount - removed, this.count);
         if (remainingToRemove > 0) {
             this.count -= remainingToRemove;
-            damage += remainingToRemove; // Assume normal units for mathematical subtraction
+            damage += remainingToRemove;
         }
         
         return damage;
@@ -557,16 +571,38 @@ class Crowd {
                 
                 if (!moving) {
                     if (u.ringAngle === undefined) u.ringAngle = Math.atan2(u.oz, u.ox);
-                    u.ringAngle += dt * 3.5;
-                    const ringRadius = 12 + spreadScale * 5 + Math.random() * 6;
-                    tx = Math.cos(u.ringAngle) * ringRadius;
-                    tz = Math.sin(u.ringAngle) * ringRadius;
+                    u.ringAngle += dt * 8.0; // fast clockwise
+                    const orbitRadius = 9;
+                    // Small offset so circles heavily overlap — fighting in shared space
+                    tx = Math.cos(u.ringAngle) * orbitRadius;
+                    tz = (orbitRadius * 0.2) + Math.sin(u.ringAngle) * orbitRadius;
+                    // Attack lunge: scale up + jump high when lunging into enemy space
+                    const attacking = Math.sin(u.ringAngle) < -0.45;
+                    u.targetScale = attacking ? 1.3 : 1.0;
+                    u.mesh.position.y = attacking
+                        ? Math.abs(Math.sin(u.phase)) * 5 + 2.5
+                        : Math.abs(Math.sin(u.phase)) * 2;
+                    // Face toward enemy (away from camera = Math.PI)
+                    u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, Math.PI, 0.12);
                 } else {
                     if (u.ringAngle !== undefined) u.ringAngle = undefined;
+                    u.targetScale = 1.0;
+                    u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, 0, 0.08);
                 }
                 
                 u.mesh.position.x = Utils.lerp(u.mesh.position.x, tx, 0.15);
                 u.mesh.position.z = Utils.lerp(u.mesh.position.z, tz, 0.15);
+            } else {
+                // Death burst: fly outward to the right
+                if (u.deathVx !== undefined) {
+                    u.mesh.position.x += u.deathVx * dt;
+                    u.mesh.position.z += u.deathVz * dt;
+                    u.mesh.position.y += u.deathVy * dt;
+                    u.deathVy -= 30 * dt; // gravity
+                    u.deathVx *= 0.85;
+                    u.deathVz *= 0.85;
+                    u.mesh.rotation.z += u.deathSpin * dt;
+                }
             }
             
             u.scale = Utils.lerp(u.scale, u.targetScale, 0.15);
