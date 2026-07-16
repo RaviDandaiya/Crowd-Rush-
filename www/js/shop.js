@@ -1,0 +1,65 @@
+// ============================================================
+// shop.js — Coin system, upgrades, skins persistence
+// ============================================================
+
+class Shop {
+    constructor() { this.data = this.load(); }
+    getDefaults() {
+        return {
+            coins: 0, currentLevel: 1, highestLevel: 1,
+            currentSkin: 'default', unlockedSkins: ['default'],
+            upgrades: { speed: 0, startCrowd: 0, gateMagnet: 0 },
+            bestRuns: [],
+            totalCoinsEarned: 0,
+        };
+    }
+    load() {
+        try {
+            const s = localStorage.getItem('crowdRushSave');
+            if (s) {
+                const parsed = JSON.parse(s);
+                const merged = { ...this.getDefaults(), ...parsed };
+                if (merged.upgrades.speed === undefined) {
+                    merged.upgrades.speed = merged.upgrades.fireRate || 0;
+                }
+                return merged;
+            }
+        } catch(e) {}
+        return this.getDefaults();
+    }
+    save() { try { localStorage.setItem('crowdRushSave', JSON.stringify(this.data)); } catch(e) {} }
+    addCoins(n) { this.data.coins += n; this.data.totalCoinsEarned = (this.data.totalCoinsEarned || 0) + n; this.save(); }
+    spendCoins(n) { if (this.data.coins >= n) { this.data.coins -= n; this.save(); return true; } return false; }
+    getCoins() { return this.data.coins; }
+    getTotalCoinsEarned() { return this.data.totalCoinsEarned || 0; }
+    getUpgradeCost(t) {
+        const c = { speed: [100,250,500], startCrowd: [150,400,800], gateMagnet: [200,500,1000] };
+        const l = this.data.upgrades[t]; return l >= 3 ? null : c[t][l];
+    }
+    getUpgradeLevel(t) { return this.data.upgrades[t]; }
+    buyUpgrade(t) { const c = this.getUpgradeCost(t); if (c && this.spendCoins(c)) { this.data.upgrades[t]++; this.save(); return true; } return false; }
+    getSpeed() { return 2.0 + (this.data.upgrades.speed || 0) * 0.45; }
+    getStartingCrowd() { return 10 + this.data.upgrades.startCrowd * 5; }
+    getGateMagnet() { return [0, 0.3, 0.6, 1][this.data.upgrades.gateMagnet]; }
+    buySkin(k) { const s = CROWD_SKINS[k]; if (!s || this.data.unlockedSkins.includes(k)) return false; if (this.spendCoins(s.cost)) { this.data.unlockedSkins.push(k); this.save(); return true; } return false; }
+    selectSkin(k) { if (this.data.unlockedSkins.includes(k)) { this.data.currentSkin = k; this.save(); return true; } return false; }
+    isSkinUnlocked(k) { return this.data.unlockedSkins.includes(k); }
+    getCurrentSkin() { return this.data.currentSkin; }
+    completeLevel(id) { if (id >= this.data.highestLevel) this.data.highestLevel = Math.min(id + 1, LEVELS.length); this.save(); }
+    getCurrentLevel() { return this.data.currentLevel; }
+    setCurrentLevel(l) { this.data.currentLevel = l; this.save(); }
+    getHighestLevel() { return this.data.highestLevel; }
+
+    // Best run tracking
+    trackBestRun(run) {
+        if (!this.data.bestRuns) this.data.bestRuns = [];
+        this.data.bestRuns.unshift(run);
+        if (this.data.bestRuns.length > 10) this.data.bestRuns.length = 10;
+        this.save();
+    }
+    getBestRuns() { return this.data.bestRuns || []; }
+    getBestForLevel(id) {
+        const runs = (this.data.bestRuns || []).filter(r => r.level === id);
+        return runs.length ? runs.reduce((a, b) => a.coins > b.coins ? a : b) : null;
+    }
+}
