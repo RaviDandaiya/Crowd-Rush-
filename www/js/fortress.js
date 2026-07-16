@@ -117,7 +117,11 @@ class Fortress {
 
             while (this.attackTimer >= 0.04 && this.hp > 0 && this.game.crowd.count > 0) {
                 this.attackTimer -= 0.04;
-                const dmg = this.game.crowd.clashRemoveOne();
+                
+                // Scale damage so each phase takes ~0.4 seconds (approx 10 ticks)
+                const unitsToRemove = Math.max(1, Math.ceil(this.maxHP / 30));
+                const dmg = this.game.crowd.clashRemoveAmount(unitsToRemove);
+                
                 if (dmg > 0) {
                     const amplifiedDmg = dmg * 3;
                     this.hp = Math.max(0, this.hp - amplifiedDmg);
@@ -140,10 +144,10 @@ class Fortress {
                     this.vec.project(this.game.camera);
                     const screenY = -(this.vec.y * 0.5 - 0.5) * GC.H;
                     
-                    this.game.particles.coinExplosion(GC.W/2, screenY, 30);
-                    this.game.particles.confetti(GC.W/2, screenY, 50);
-                    this.game.screenFx.shake(12, 0.6);
-                    this.game.screenFx.flash('rgba(255,220,0,0.5)', 0.4);
+                    this.game.particles.coinExplosion(GC.W/2, screenY, 60);
+                    this.game.particles.confetti(GC.W/2, screenY, 80);
+                    this.game.screenFx.shake(16, 0.8);
+                    this.game.screenFx.flash('rgba(255,220,0,0.7)', 0.5);
                     if (this.game.sound) this.game.sound.phaseTransition();
 
                     this.phaseIndex++;
@@ -152,13 +156,14 @@ class Fortress {
                         this.maxHP = this.currentPhase.hp;
                         this.hp = this.maxHP;
                         this.damageDealt = 0;
-                        if (this.game.combo) this.game.combo.addNumberPop(GC.W/2, screenY - 60, `🔥 ${this.currentPhase.label}!`, '#FF8800');
+                        this.game.floatingText.spawn(`🔥 ${this.currentPhase.label}!`, GC.W/2, screenY - 60, '#FF8800');
                     } else {
                         this.state = 'destroyed';
                         this.coinsEarned = this.game.crowd.count * 2 + this.damageDealt;
-                        this.game.particles.coinExplosion(GC.W/2, screenY, 60);
-                        this.game.particles.confetti(GC.W/2, screenY, 80);
-                        this.game.screenFx.shake(16, 0.8);
+                        this.game.particles.coinExplosion(GC.W/2, screenY, 120);
+                        this.game.particles.confetti(GC.W/2, screenY, 150);
+                        this.game.screenFx.shake(25, 1.2);
+                        this.game.screenFx.flash('rgba(255,255,255,0.8)', 0.6);
                         if (this.game.sound) this.game.sound.victory();
                         
                         // Collapse animation

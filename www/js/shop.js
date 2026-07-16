@@ -33,14 +33,18 @@ class Shop {
     getCoins() { return this.data.coins; }
     getTotalCoinsEarned() { return this.data.totalCoinsEarned || 0; }
     getUpgradeCost(t) {
-        const c = { speed: [100,250,500], startCrowd: [150,400,800], gateMagnet: [200,500,1000] };
-        const l = this.data.upgrades[t]; return l >= 3 ? null : c[t][l];
+        const c = { 
+            speed: [250, 1000, 3000, 8000, 20000], 
+            startCrowd: [300, 1200, 4000, 10000, 25000], 
+            gateMagnet: [500, 2000, 6000, 15000, 30000] 
+        };
+        const l = this.data.upgrades[t]; return l >= 5 ? null : c[t][l];
     }
     getUpgradeLevel(t) { return this.data.upgrades[t]; }
     buyUpgrade(t) { const c = this.getUpgradeCost(t); if (c && this.spendCoins(c)) { this.data.upgrades[t]++; this.save(); return true; } return false; }
-    getSpeed() { return 2.0 + (this.data.upgrades.speed || 0) * 0.45; }
-    getStartingCrowd() { return 10 + this.data.upgrades.startCrowd * 5; }
-    getGateMagnet() { return [0, 0.3, 0.6, 1][this.data.upgrades.gateMagnet]; }
+    getSpeed() { return 2.0 + (this.data.upgrades.speed || 0) * 0.6; }
+    getStartingCrowd() { return 10 + (this.data.upgrades.startCrowd || 0) * 15; }
+    getGateMagnet() { return [0, 0.4, 1.0, 2.0, 3.5, 6.0][this.data.upgrades.gateMagnet || 0] || 0; }
     buySkin(k) { const s = CROWD_SKINS[k]; if (!s || this.data.unlockedSkins.includes(k)) return false; if (this.spendCoins(s.cost)) { this.data.unlockedSkins.push(k); this.save(); return true; } return false; }
     selectSkin(k) { if (this.data.unlockedSkins.includes(k)) { this.data.currentSkin = k; this.save(); return true; } return false; }
     isSkinUnlocked(k) { return this.data.unlockedSkins.includes(k); }

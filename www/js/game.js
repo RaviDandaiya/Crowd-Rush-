@@ -11,8 +11,9 @@ class Game {
 
         // --- Three.js Setup ---
         this.scene = new THREE.Scene();
-        // Cyberpunk/Neon dark blue fog
-        this.scene.fog = new THREE.FogExp2(0x060814, 0.002);
+
+        // Fog setup (Dynamic, updated in loop)
+        this.scene.fog = new THREE.FogExp2(0x2B2F36, 0.0025);
         
         // Isometric-ish Camera
         this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3000);
@@ -22,9 +23,6 @@ class Game {
         this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false });
         this.renderer.setPixelRatio(this.dpr);
         this.renderer.setClearColor(0x2B2F36); // Dark grey background
-        
-        // Grey fog
-        this.scene.fog = new THREE.Fog(0x2B2F36, 500, 1500);
         
         // Lighting
         const ambient = new THREE.AmbientLight(0xffffff, 0.6); // Enhanced ambient
@@ -50,6 +48,7 @@ class Game {
         this.sound = new SoundManager();
         this.shop = new Shop();
         this.particles = new ParticleSystem(800);
+        this.floatingText = new FloatingTextManager();
         this.screenFx = new ScreenFX();
         this.combo = new ComboSystem(this);
         this.crowd = new Crowd(this);
@@ -375,6 +374,7 @@ class Game {
     update(dt) {
         this.ui.update(dt);
         this.particles.update(dt);
+        this.floatingText.update(dt);
         this.screenFx.update(dt);
         this.combo.update(dt);
 
@@ -428,8 +428,40 @@ class Game {
             }
         }
         
-        // Simple ambient animation for city background
-        this.cityGroup.position.z = (Date.now() * 0.02) % 100;
+        // 3D Camera Dynamic Logic & Screen Shake
+        const crowdZ = this.crowd.group.position.z;
+        let targetZ, targetY, targetX;
+
+        if (this.state === 'CLASH' || this.state === 'FORTRESS_ATTACK') {
+            // Zoom in for dramatic fight view
+            targetZ = crowdZ + 60;
+            targetY = 40;
+            targetX = this.crowd.group.position.x * 0.5;
+        } else {
+            // Standard follow-cam — fixed height so nothing disappears
+            targetZ = crowdZ + 90;
+            targetY = 70;
+            targetX = this.crowd.group.position.x * 0.7;
+        }
+        
+        this.camera.position.x = Utils.lerp(this.camera.position.x, targetX, 0.1);
+        this.camera.position.y = Utils.lerp(this.camera.position.y, targetY, 0.1);
+        this.camera.position.z = Utils.lerp(this.camera.position.z, targetZ, 0.15);
+        
+        // Apply 3D Screen Shake from screenFx
+        let cx = this.camera.position.x;
+        let cy = this.camera.position.y;
+        if (this.screenFx.ox !== 0 || this.screenFx.oy !== 0) {
+            cx += this.screenFx.ox * 0.5;
+            cy += this.screenFx.oy * 0.5;
+        }
+        this.camera.position.set(cx, cy, this.camera.position.z);
+        
+        // Always look ahead of the crowd along the track
+        this.camera.lookAt(0, 0, crowdZ - 50);
+
+        // Slide city background with camera
+        this.cityGroup.position.z = this.camera.position.z - 1000;
     }
 
     showAd(rewardType, callback) {
@@ -486,21 +518,7 @@ class Game {
 
     render() {
         // --- 1. Render 3D Scene ---
-        const crowdZ = (this.crowd && this.crowd.group) ? this.crowd.group.position.z : 0;
-        
-        // Dynamically adjust camera during clash/attack
-        if (this.state === 'CLASH' || this.state === 'FORTRESS_ATTACK') {
-            this.camera.position.y = Utils.lerp(this.camera.position.y, 40, 0.1);
-            this.camera.position.z = Utils.lerp(this.camera.position.z, crowdZ + 60, 0.1);
-            // Camera shake
-            this.camera.position.x = (Math.random() - 0.5) * 2;
-        } else {
-            this.camera.position.y = Utils.lerp(this.camera.position.y, 70, 0.1);
-            this.camera.position.z = Utils.lerp(this.camera.position.z, crowdZ + 90, 0.1);
-            this.camera.position.x = Utils.lerp(this.camera.position.x, 0, 0.1);
-        }
-        this.camera.lookAt(0, 0, crowdZ - 50);
-
+        // NOTE: Camera is fully managed in update(). Do NOT reposition here to avoid jitter.
         this.renderer.render(this.scene, this.camera);
 
         // --- 2. Render 2D UI Overlay ---

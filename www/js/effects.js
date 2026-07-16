@@ -31,7 +31,7 @@ class Particle {
         ctx.save();
         ctx.globalAlpha = this.opacity;
         ctx.translate(this.x, this.y);
-        ctx.rotate(this.rotation);
+         ctx.rotate(this.rotation);
         const s = this.shrink ? this.size * (0.3 + 0.7 * this.opacity) : this.size;
         if (this.glow) {
             ctx.shadowColor = this.glowColor;
@@ -219,5 +219,74 @@ class ScreenFX {
             ctx.fillRect(0, 0, w, h);
             ctx.restore();
         }
+    }
+}
+
+// ----------------------------------------------------
+// Floating Text (Game Juice)
+// ----------------------------------------------------
+class FloatingText {
+    constructor() { this.active = false; }
+    reset(text, x, y, color, size, duration = 1.0) {
+        this.active = true;
+        this.text = text;
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.size = size;
+        this.life = duration;
+        this.maxLife = duration;
+        this.vy = -100;
+        this.scale = 0.2;
+    }
+    update(dt) {
+        if (!this.active) return;
+        this.life -= dt;
+        this.y += this.vy * dt;
+        this.vy *= 0.9;
+        
+        // Pop scale effect
+        if (this.maxLife - this.life < 0.2) {
+            this.scale = Utils.lerp(this.scale, 1.2, 0.3);
+        } else {
+            this.scale = Utils.lerp(this.scale, 1.0, 0.1);
+        }
+        
+        if (this.life <= 0) this.active = false;
+    }
+    draw(ctx) {
+        if (!this.active) return;
+        ctx.save();
+        const alpha = Math.max(0, this.life / this.maxLife);
+        ctx.globalAlpha = alpha;
+        ctx.translate(this.x, this.y);
+        ctx.scale(this.scale, this.scale);
+        
+        ctx.font = `900 ${this.size}px Outfit, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Glow / Outline
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = this.size * 0.2;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(this.text, 0, 0);
+        
+        ctx.fillStyle = this.color;
+        ctx.fillText(this.text, 0, 0);
+        
+        ctx.restore();
+    }
+}
+
+class FloatingTextManager {
+    constructor(n = 20) { this.pool = Array.from({length: n}, () => new FloatingText()); }
+    get() { return this.pool.find(p => !p.active) || this.pool[0]; }
+    update(dt) { this.pool.forEach(p => p.active && p.update(dt)); }
+    draw(ctx) { this.pool.forEach(p => p.active && p.draw(ctx)); }
+    
+    spawn(text, x, y, color, size = 40) {
+        const t = this.get();
+        t.reset(text, x + Utils.randomRange(-20, 20), y + Utils.randomRange(-20, 20), color, size);
     }
 }

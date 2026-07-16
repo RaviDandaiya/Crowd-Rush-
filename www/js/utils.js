@@ -53,11 +53,11 @@ const THEMES = {
 
 const CROWD_SKINS = {
     default: { name: 'Blue', body: '#4A9EFF', head: '#6BB5FF', outline: '#2D7AD4', cost: 0, type: 'default' },
-    steve: { name: 'Steve (3D)', body: '#00B4D8', head: '#E0A96D', outline: '#0077B6', cost: 300, type: 'steve' },
-    creeper: { name: 'Creeper (3D)', body: '#38B000', head: '#70E000', outline: '#007200', cost: 500, type: 'creeper' },
-    devil: { name: 'Devil (3D)', body: '#D90429', head: '#EF233C', outline: '#8D0801', cost: 800, type: 'devil' },
-    robot: { name: 'Robot (3D)', body: '#73A942', head: '#ADF7B6', outline: '#1A5F7A', cost: 1000, type: 'robot' },
-    rainbow: { name: 'Rainbow', body: 'rainbow', head: 'rainbow', outline: '#888', cost: 1200, type: 'rainbow' },
+    steve: { name: 'Steve (3D)', body: '#00B4D8', head: '#E0A96D', outline: '#0077B6', cost: 1500, type: 'steve' },
+    creeper: { name: 'Creeper (3D)', body: '#38B000', head: '#70E000', outline: '#007200', cost: 2500, type: 'creeper' },
+    devil: { name: 'Devil (3D)', body: '#D90429', head: '#EF233C', outline: '#8D0801', cost: 5000, type: 'devil' },
+    robot: { name: 'Robot (3D)', body: '#73A942', head: '#ADF7B6', outline: '#1A5F7A', cost: 10000, type: 'robot' },
+    rainbow: { name: 'Rainbow', body: 'rainbow', head: 'rainbow', outline: '#888', cost: 25000, type: 'rainbow' },
 };
 
 const ENEMY_COLORS = { body: '#FF4444', head: '#FF6666', outline: '#CC2222' };

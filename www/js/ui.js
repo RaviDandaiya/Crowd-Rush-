@@ -139,8 +139,13 @@ class UI {
             ctx.fillText(p.text, p.x, p.y);
             ctx.restore();
         }
+        
+        // === 10. FLOATING TEXT (GAME JUICE) ===
+        if (this.game.floatingText) {
+            this.game.floatingText.draw(ctx);
+        }
 
-        // === 10. VICTORY BANNER ===
+        // === 11. VICTORY BANNER ===
         if (this.game.fortress.state === 'destroyed') {
             this._drawVictoryBanner(ctx, w);
         }

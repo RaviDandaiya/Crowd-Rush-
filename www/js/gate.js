@@ -138,42 +138,44 @@ class GateManager {
         const parts  = this.game.particles;
 
         if (gate.type === 'golden') {
+            const mult = combo ? combo.onPositive() : 1;
+            const finalVal = Math.round(2 * mult);
             const before = crowd.count;
-            crowd.applyGate('multiply', 2);
+            crowd.applyGate('multiply', finalVal);
             const gained = crowd.count - before;
             fx.flash('rgba(255,215,0,0.6)', 0.4);
             fx.shake(6, 0.3);
             parts.confetti(sx, sy, 60);
             parts.coinExplosion(sx, sy, 40);
-            if (combo) combo.onPositive();
-            if (combo) combo.addNumberPop(sx, sy - 30, `✨ ×2 ALL! +${gained}`, '#FFD700');
+            this.game.floatingText.spawn(`✨ ×${finalVal} ALL! +${gained}`, sx, sy - 30, '#FFD700');
             if (sound) sound.gatePositive();
 
         } else if (gate.type === 'shield') {
             crowd.activateShield(30);
             fx.flash('rgba(0,200,255,0.5)', 0.4);
             parts.burst(sx, sy, 30, ['#00CCFF','#00FFEE','#FFFFFF'], 80, 200, 0.6, 1.2, 3, 6, 'circle', 100);
+            parts.burst(sx, sy, 30, ['#00CCFF','#00FFEE','#FFFFFF'], 80, 200, 0.6, 1.2, 3, 6, 'circle', 100);
             if (combo) combo.onPositive();
-            if (combo) combo.addNumberPop(sx, sy - 30, '🛡️ SHIELDED!', '#00CCFF');
+            this.game.floatingText.spawn('🛡️ SHIELDED!', sx, sy - 30, '#00CCFF');
             if (sound) sound.shield();
 
         } else if (gate.type === 'explode') {
-            const cleared = this.game.enemies.explodeNearby(crowd.worldY, 600);
+            const mult = combo ? combo.onPositive() : 1;
+            const cleared = this.game.enemies.explodeNearby(crowd.worldY, 600 * mult);
             fx.flash('rgba(255,100,0,0.6)', 0.5);
             fx.shake(10, 0.5);
             parts.burst(sx, sy, 50, ['#FF4400','#FF8800','#FFCC00'], 120, 350, 0.6, 1.5, 3, 8, 'circle', 200);
-            if (combo) combo.onPositive();
-            if (combo) combo.addNumberPop(sx, sy - 30, `💥 CLEARED ${cleared}!`, '#FF4400');
+            this.game.floatingText.spawn(`💥 CLEARED ${cleared}!`, sx, sy - 30, '#FF4400');
             if (sound) sound.explode();
 
         } else if (gate.type === 'giant' || gate.type === 'archer') {
-            const num = gate.value;
+            const mult = combo ? combo.onPositive() : 1;
+            const num = Math.round(gate.value * mult);
             crowd.addUnits(num, gate.type);
             const color = gate.type === 'giant' ? '#FF22FF' : '#55FF55';
             fx.flash(`rgba(${gate.type==='giant'?'255,34,255':'85,255,85'},0.4)`, 0.3);
             parts.burst(sx, sy, 30, [color, '#FFFFFF'], 80, 200, 0.6, 1.2, 3, 6, 'circle', 100);
-            if (combo) combo.onPositive();
-            if (combo) combo.addNumberPop(sx, sy - 30, `+${num} ${gate.type.toUpperCase()}S!`, color);
+            this.game.floatingText.spawn(`+${num} ${gate.type.toUpperCase()}S!`, sx, sy - 30, color);
             if (sound) sound.gatePositive();
 
         } else if (gate.isPositive) {
@@ -183,10 +185,13 @@ class GateManager {
             const gained = crowd.count - before;
             parts.confetti(sx, sy, 35);
             fx.flash('rgba(0,255,100,0.4)', 0.3);
+            parts.confetti(sx, sy, 35);
+            fx.flash('rgba(0,255,100,0.4)', 0.3);
+            fx.shake(2, 0.2); // Add subtle screen shake on normal positive gates
             if (mult > 1 && combo) {
-                combo.addNumberPop(sx, sy - 30, `+${gained} ×${mult}COMBO!`, '#FFD700');
-            } else if (combo) {
-                combo.addNumberPop(sx, sy - 30, `+${gained}`, '#00FF88');
+                this.game.floatingText.spawn(`+${gained} ×${mult}COMBO!`, sx, sy - 30, '#FFD700');
+            } else {
+                this.game.floatingText.spawn(`+${gained}`, sx, sy - 30, '#00FF88');
             }
             if (sound) sound.gatePositive();
 
@@ -199,8 +204,8 @@ class GateManager {
             fx.shake(6, 0.3);
             if (combo) {
                 combo.onNegative();
-                combo.addNumberPop(sx, sy - 30, `-${lost}`, '#FF4444');
             }
+            this.game.floatingText.spawn(`-${lost}`, sx, sy - 30, '#FF4444');
             if (sound) sound.gateNegative();
         }
     }
