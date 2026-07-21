@@ -1,5 +1,17 @@
 {
   "appId": "com.yourstudio.crowdrush",
   "appName": "Crowd Rush",
-  "webDir": "www"
+  "webDir": "src",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 3000,
+      "launchAutoHide": false,
+      "backgroundColor": "#0A0F1E",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP"
+    },
+    "StatusBar": {
+      "style": "DARK"
+    }
+  }
 }

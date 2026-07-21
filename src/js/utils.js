@@ -1,6 +1,21 @@
-// ============================================================
-// utils.js — Math helpers, color palettes, easing functions
-// ============================================================
+// Polyfill Canvas2DRenderingContext.roundRect for maximum compatibility across browsers/webviews
+if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, radii) {
+        if (typeof radii === 'number') radii = [radii, radii, radii, radii];
+        else if (!radii) radii = [0, 0, 0, 0];
+        const r0 = radii[0] || 0, r1 = radii[1] || r0, r2 = radii[2] || r0, r3 = radii[3] || r1;
+        this.moveTo(x + r0, y);
+        this.lineTo(x + w - r1, y);
+        this.quadraticCurveTo(x + w, y, x + w, y + r1);
+        this.lineTo(x + w, y + h - r2);
+        this.quadraticCurveTo(x + w, y + h, x + w - r2, y + h);
+        this.lineTo(x + r3, y + h);
+        this.quadraticCurveTo(x, y + h, x, y + h - r3);
+        this.lineTo(x, y + r0);
+        this.quadraticCurveTo(x, y, x + r0, y);
+        return this;
+    };
+}
 
 const Utils = {
     lerp(a, b, t) { return a + (b - a) * t; },
@@ -57,7 +72,10 @@ const CROWD_SKINS = {
     creeper: { name: 'Creeper (3D)', body: '#38B000', head: '#70E000', outline: '#007200', cost: 2500, type: 'creeper' },
     devil: { name: 'Devil (3D)', body: '#D90429', head: '#EF233C', outline: '#8D0801', cost: 5000, type: 'devil' },
     robot: { name: 'Robot (3D)', body: '#73A942', head: '#ADF7B6', outline: '#1A5F7A', cost: 10000, type: 'robot' },
-    rainbow: { name: 'Rainbow', body: 'rainbow', head: 'rainbow', outline: '#888', cost: 25000, type: 'rainbow' },
+    ninja: { name: 'Cyber Ninja', body: '#8A2BE2', head: '#00FFFF', outline: '#4B0082', cost: 15000, type: 'ninja' },
+    superhero: { name: 'Superhero', body: '#E63946', head: '#FFD166', outline: '#1D3557', cost: 20000, type: 'superhero' },
+    gold_king: { name: 'Golden King', body: '#FFD700', head: '#FFF8DC', outline: '#DAA520', cost: 35000, type: 'gold_king' },
+    rainbow: { name: 'Rainbow', body: 'rainbow', head: 'rainbow', outline: '#888', cost: 50000, type: 'rainbow' },
 };
 
 const ENEMY_COLORS = { body: '#FF4444', head: '#FF6666', outline: '#CC2222' };
@@ -67,12 +85,16 @@ const GC = {
     W: 400, H: 720,
     LANE_W: 240,
     CROWD_SPEED: 2.4,
+    RUSH_SPEED_MULT: 1.75,
     FIRE_RATE: 0.7,
     UNITS_PER_SHOT: 4,
     CLASH_RATE: 18,
     UNIT_R: 5,
     GATE_W: 120,
     GATE_H: 70,
+    FEVER_MAX: 100,
+    FEVER_DURATION_BASE: 5.0,
+    SHIELD_DURATION: 6.0,
     // 3D perspective parameters
     HORIZON_Y: 180,     // where the vanishing point is (Y on screen)
     GROUND_TOP: 180,     // where ground starts

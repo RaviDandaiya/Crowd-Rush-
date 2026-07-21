@@ -166,6 +166,27 @@ class ParticleSystem {
             p.glow = true; p.glowColor = '#00FFEE';
         }
     }
+
+    feverTrail(x, y, count = 3) {
+        const colors = ['#FF0055', '#FFCC00', '#00FFCC', '#9900FF', '#FF5500'];
+        for (let i = 0; i < count; i++) {
+            const p = this.get();
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            p.reset(
+                x + Utils.randomRange(-25, 25),
+                y + Utils.randomRange(-10, 10),
+                Utils.randomRange(-40, 40),
+                Utils.randomRange(20, 80),
+                Utils.randomRange(0.4, 0.8),
+                Utils.randomRange(4, 9),
+                color,
+                'star',
+                -30
+            );
+            p.glow = true;
+            p.glowColor = color;
+        }
+    }
 }
 
 class ScreenFX {

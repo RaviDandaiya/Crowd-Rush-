@@ -340,6 +340,85 @@ class Crowd {
             pupilR.position.set(0, 0, isGiant ? 0.6 : 0.3);
             eyeR.add(pupilR);
 
+        } else if (skin.type === 'ninja') {
+            // Cyber Ninja: Dark purple suit with glowing cyan visor & back swords
+            const ninjaMat = getCachedMat('ninjaBody', '#4B0082', 0.5, 0.3);
+            const geomBody = isGiant ? this.geomBodyGiant : this.geomBodyNormal;
+            const body = new THREE.Mesh(geomBody, ninjaMat);
+            body.position.y = isGiant ? 4.5 : 2.2;
+            unitGroup.add(body);
+            mainMesh = body;
+
+            // Glowing cyan visor
+            const visorMat = getCachedMat('ninjaVisor', '#00FFFF', 0.1, 0.1);
+            visorMat.emissive = new THREE.Color('#00FFFF');
+            visorMat.emissiveIntensity = 0.8;
+            const visor = new THREE.Mesh(new THREE.BoxGeometry(1.2 * sf, 0.35 * sf, 0.5 * sf), visorMat);
+            visor.position.set(0, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(visor);
+
+            // Katana hilts on back
+            const katanaMat = getCachedMat('ninjaSword', '#8A2BE2', 0.8, 0.2);
+            const k1 = new THREE.Mesh(new THREE.BoxGeometry(0.15 * sf, 1.4 * sf, 0.15 * sf), katanaMat);
+            k1.position.set(-0.4 * sf, isGiant ? 1.2 : 0.6, -1.0 * sf);
+            k1.rotation.z = -0.5;
+            body.add(k1);
+
+        } else if (skin.type === 'superhero') {
+            // Superhero: Red body, gold chest icon, blue cape
+            const heroMat = getCachedMat('heroBody', '#E63946', 0.3, 0.4);
+            const geomBody = isGiant ? this.geomBodyGiant : this.geomBodyNormal;
+            const body = new THREE.Mesh(geomBody, heroMat);
+            body.position.y = isGiant ? 4.5 : 2.2;
+            unitGroup.add(body);
+            mainMesh = body;
+
+            // Gold chest emblem
+            const goldMat = getCachedMat('heroEmblem', '#FFD166', 0.7, 0.3);
+            const emblem = new THREE.Mesh(new THREE.OctahedronGeometry(0.4 * sf), goldMat);
+            emblem.position.set(0, isGiant ? 0.5 : 0.2, isGiant ? 2.3 : 1.1);
+            body.add(emblem);
+
+            // Flowing blue cape
+            const capeMat = getCachedMat('heroCape', '#1D3557', 0.1, 0.6);
+            const cape = new THREE.Mesh(new THREE.BoxGeometry(1.4 * sf, 2.2 * sf, 0.1 * sf), capeMat);
+            cape.position.set(0, isGiant ? 0.5 : 0.2, -1.0 * sf);
+            cape.rotation.x = 0.3;
+            body.add(cape);
+
+            // Eyes
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(isGiant ? 0.35 : 0.2, 8, 8), matW);
+            eyeL.position.set(-0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(eyeL);
+            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(isGiant ? 0.35 : 0.2, 8, 8), matW);
+            eyeR.position.set(0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(eyeR);
+
+        } else if (skin.type === 'gold_king') {
+            // Golden King: Ultra metallic gold body with crown
+            const kingMat = getCachedMat('kingBody', '#FFD700', 0.95, 0.1);
+            kingMat.emissive = new THREE.Color('#DAA520');
+            kingMat.emissiveIntensity = 0.4;
+            const geomBody = isGiant ? this.geomBodyGiant : this.geomBodyNormal;
+            const body = new THREE.Mesh(geomBody, kingMat);
+            body.position.y = isGiant ? 4.5 : 2.2;
+            unitGroup.add(body);
+            mainMesh = body;
+
+            // Golden Crown
+            const crownMat = getCachedMat('kingCrown', '#FFF8DC', 0.9, 0.1);
+            const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.7 * sf, 0.5 * sf, 0.5 * sf, 6), crownMat);
+            crown.position.set(0, isGiant ? 3.0 : 1.6, 0);
+            body.add(crown);
+
+            // Eyes
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(isGiant ? 0.35 : 0.2, 8, 8), matB);
+            eyeL.position.set(-0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(eyeL);
+            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(isGiant ? 0.35 : 0.2, 8, 8), matB);
+            eyeR.position.set(0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(eyeR);
+
         } else {
             // Default capsule styling
             const geomBody = isGiant ? this.geomBodyGiant : this.geomBodyNormal;
@@ -562,36 +641,77 @@ class Crowd {
             
             if (u.alive) {
                 u.phase += u.speed * dt;
-                u.mesh.position.y = Math.abs(Math.sin(u.phase)) * 2;
                 
                 // Spread out based on count, clamp so it doesn't get ridiculously large
                 const spreadScale = Math.min(1 + Math.sqrt(Math.min(this.count, 2000)) * 0.05, 1.8);
                 let tx = u.ox * spreadScale;
                 let tz = u.oz * spreadScale;
                 
+                let sxFactor = 1.0;
+                let syFactor = 1.0;
+                let szFactor = 1.0;
+
                 if (!moving) {
-                    if (u.ringAngle === undefined) u.ringAngle = Math.atan2(u.oz, u.ox);
-                    u.ringAngle += dt * 8.0; // fast clockwise
-                    const orbitRadius = 9;
-                    // Small offset so circles heavily overlap — fighting in shared space
-                    tx = Math.cos(u.ringAngle) * orbitRadius;
-                    tz = (orbitRadius * 0.2) + Math.sin(u.ringAngle) * orbitRadius;
-                    // Attack lunge: scale up + jump high when lunging into enemy space
-                    const attacking = Math.sin(u.ringAngle) < -0.45;
-                    u.targetScale = attacking ? 1.3 : 1.0;
-                    u.mesh.position.y = attacking
-                        ? Math.abs(Math.sin(u.phase)) * 5 + 2.5
-                        : Math.abs(Math.sin(u.phase)) * 2;
-                    // Face toward enemy (away from camera = Math.PI)
-                    u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, Math.PI, 0.12);
+                    if (u.ringAngle === undefined) {
+                        // Spacing based on index to form a clean line-by-line chain
+                        u.ringAngle = i * 0.15;
+                    }
+                    u.ringAngle += dt * 6.5; // smooth rotation speed
+                    
+                    const t = u.ringAngle;
+                    const orbitW = 9.0;
+                    const orbitH = 4.5;
+                    
+                    // Circular loop on player's side: Z starts at -1.875 (clash midpoint) and goes back
+                    tx = Math.sin(t) * orbitW;
+                    tz = (1 - Math.cos(t)) * orbitH - 1.875;
+                    
+                    // Flat on the ground (no up-down animation when clashing)
+                    u.mesh.position.y = u.type === 'giant' ? 4.5 : 2.2;
+                    
+                    const attacking = tz < -2.5; // deep in clash zone
+                    u.targetScale = attacking ? 1.25 : 1.0;
+                    
+                    if (attacking) {
+                        // Stretch: taller body, thinner radius
+                        syFactor = 1.25;
+                        sxFactor = 0.85;
+                        szFactor = 0.85;
+                        
+                        // Lean forward in direction of attack (-Z)
+                        u.mesh.rotation.x = Utils.lerp(u.mesh.rotation.x || 0, 0.35, 0.2);
+                    } else {
+                        // Squash when returning/landing
+                        syFactor = 0.85;
+                        sxFactor = 1.15;
+                        szFactor = 1.15;
+                        u.mesh.rotation.x = Utils.lerp(u.mesh.rotation.x || 0, 0, 0.2);
+                    }
+                    
+                    // Face moving direction (heading yaw rotation)
+                    // Derivative of path: dx/dt = cos(t)*orbitW, dz/dt = sin(t)*orbitH
+                    const vx = Math.cos(t) * orbitW;
+                    const vz = Math.sin(t) * orbitH;
+                    const targetRotY = Math.atan2(vx, vz);
+                    const rotLerp = 1 - Math.pow(1 - 0.18, dt * 60);
+                    u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, targetRotY, rotLerp);
                 } else {
+                    u.mesh.position.y = Math.abs(Math.sin(u.phase)) * 2;
                     if (u.ringAngle !== undefined) u.ringAngle = undefined;
                     u.targetScale = 1.0;
-                    u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, 0, 0.08);
+                    const rotLerp = 1 - Math.pow(1 - 0.10, dt * 60);
+                    u.mesh.rotation.x = Utils.lerp(u.mesh.rotation.x || 0, 0, rotLerp);
+                    u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, 0, rotLerp);
                 }
                 
-                u.mesh.position.x = Utils.lerp(u.mesh.position.x, tx, 0.15);
-                u.mesh.position.z = Utils.lerp(u.mesh.position.z, tz, 0.15);
+                const posLerp = 1 - Math.pow(1 - 0.18, dt * 60);
+                const scaleLerp = 1 - Math.pow(1 - 0.15, dt * 60);
+                
+                u.mesh.position.x = Utils.lerp(u.mesh.position.x, tx, posLerp);
+                u.mesh.position.z = Utils.lerp(u.mesh.position.z, tz, posLerp);
+                
+                u.scale = Utils.lerp(u.scale, u.targetScale, scaleLerp);
+                u.mesh.scale.set(u.scale * sxFactor, u.scale * syFactor, u.scale * szFactor);
             } else {
                 // Death burst: fly outward to the right
                 if (u.deathVx !== undefined) {
@@ -599,14 +719,15 @@ class Crowd {
                     u.mesh.position.z += u.deathVz * dt;
                     u.mesh.position.y += u.deathVy * dt;
                     u.deathVy -= 30 * dt; // gravity
-                    u.deathVx *= 0.85;
-                    u.deathVz *= 0.85;
+                    u.deathVx *= Math.pow(0.85, dt * 60);
+                    u.deathVz *= Math.pow(0.85, dt * 60);
                     u.mesh.rotation.z += u.deathSpin * dt;
                 }
+                
+                const scaleLerp = 1 - Math.pow(1 - 0.15, dt * 60);
+                u.scale = Utils.lerp(u.scale, u.targetScale, scaleLerp);
+                u.mesh.scale.set(u.scale, u.scale, u.scale);
             }
-            
-            u.scale = Utils.lerp(u.scale, u.targetScale, 0.15);
-            u.mesh.scale.set(u.scale, u.scale, u.scale);
             
             if (!u.alive && u.scale < 0.01) {
                 u.mesh.visible = false;

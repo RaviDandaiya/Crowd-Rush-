@@ -39,11 +39,14 @@ class Game {
 
         this._initEnvironment();
 
-        this.resize();
-
         // --- Game Logic State ---
         this.state = 'MENU'; // MENU, PLAYING, CLASH, FORTRESS_ATTACK, RESULTS, GAME_OVER
         this.settings = { sensitivity: 1.0, soundEnabled: true, graphicsQuality: 'high' };
+
+        // Fever / Hyper Rush system
+        this.feverGauge = 0;
+        this.feverActive = false;
+        this.feverTimer = 0;
 
         this.sound = new SoundManager();
         this.shop = new Shop();
@@ -57,6 +60,8 @@ class Game {
         this.enemies = new EnemyManager(this);
         this.fortress = new Fortress(this);
         this.ui = new UI(this);
+
+        this.resize();
 
         this.currentLevel = null;
         this.lastTime = 0;
@@ -136,6 +141,11 @@ class Game {
         }
         this.scene.add(this.cityGroup);
         
+        // Optimization: Freeze matrix auto-update for static background structures
+        this.pillarsGroup.children.forEach(p => { p.matrixAutoUpdate = false; p.updateMatrix(); });
+        this.cityGroup.children.forEach(b => { b.matrixAutoUpdate = false; b.updateMatrix(); });
+        this.arrowsGroup.children.forEach(l => { l.matrixAutoUpdate = false; l.updateMatrix(); });
+
         // Initial Theme apply
         this._applyTheme('city');
     }
@@ -209,22 +219,29 @@ class Game {
         const screenW = window.innerWidth;
         const screenH = window.innerHeight;
         
-        // Update Three.js canvas
-        this.renderer.setSize(screenW, screenH);
-        this.camera.aspect = screenW / screenH;
-        this.camera.updateProjectionMatrix();
-
-        // Update 2D UI canvas to match aspect ratio of original logic
         const aspect = GC.W / GC.H;
         let w, h;
         if (screenW / screenH > aspect) { h = screenH; w = h * aspect; }
         else { w = screenW; h = w / aspect; }
 
+        const left = (screenW - w) / 2;
+        const top = (screenH - h) / 2;
+
+        // Size and position 3D WebGL Canvas
+        this.renderer.setSize(w * this.dpr, h * this.dpr, false);
+        this.canvas.style.width = `${w}px`;
+        this.canvas.style.height = `${h}px`;
+        this.canvas.style.left = `${left}px`;
+        this.canvas.style.top = `${top}px`;
+
+        this.camera.aspect = aspect;
+        this.camera.updateProjectionMatrix();
+
+        // Size and position 2D UI Canvas
         this.uiCanvas.style.width = `${w}px`;
         this.uiCanvas.style.height = `${h}px`;
-        // Center it
-        this.uiCanvas.style.left = `${(screenW - w) / 2}px`;
-        this.uiCanvas.style.top = `${(screenH - h) / 2}px`;
+        this.uiCanvas.style.left = `${left}px`;
+        this.uiCanvas.style.top = `${top}px`;
 
         this.uiCanvas.width = GC.W * this.dpr;
         this.uiCanvas.height = GC.H * this.dpr;
@@ -303,6 +320,30 @@ class Game {
         window.addEventListener('scroll', () => { this.uiCanvasRect = null; });
     }
 
+    addFever(amount) {
+        if (this.feverActive) return;
+        this.feverGauge = Math.min(GC.FEVER_MAX, this.feverGauge + amount);
+        if (this.feverGauge >= GC.FEVER_MAX) {
+            this.triggerFever();
+        }
+    }
+
+    triggerFever() {
+        this.feverActive = true;
+        this.feverTimer = this.shop.getFeverDuration();
+        this.feverGauge = GC.FEVER_MAX;
+        
+        this.screenFx.flash('rgba(0,255,255,0.7)', 0.6);
+        this.screenFx.shake(12, 0.6);
+        if (this.sound) this.sound.feverRush();
+        
+        // Spawn Floating Callout Text
+        const cx = GC.W / 2;
+        const cy = GC.H / 3;
+        this.floatingText.spawn('⚡ HYPER RUSH! ⚡', cx, cy, '#00FFFF', 48);
+        this.particles.confetti(cx, cy, 80);
+    }
+
     startLevel(num) {
         const idx = num - 1;
         if (idx < 0 || idx >= LEVELS.length) return;
@@ -312,6 +353,10 @@ class Game {
         this.ui.resultData = null;
         this.ui.showingWorldMap = false;
         this.ui.showingSettings = false;
+
+        this.feverGauge = 0;
+        this.feverActive = false;
+        this.feverTimer = 0;
 
         const startCount = this.shop.getStartingCrowd();
         this.crowd.init(startCount, this.shop.getCurrentSkin());
@@ -378,7 +423,28 @@ class Game {
         this.screenFx.update(dt);
         this.combo.update(dt);
 
+        // Fever Timer Update
+        if (this.feverActive) {
+            this.feverTimer -= dt;
+            const duration = this.shop.getFeverDuration();
+            this.feverGauge = Math.max(0, (this.feverTimer / duration) * GC.FEVER_MAX);
+            if (this.feverTimer <= 0) {
+                this.feverActive = false;
+                this.feverGauge = 0;
+            }
+        }
+
         if (this.state === 'PLAYING') {
+            if (this.feverActive) {
+                this.crowd.speed = this.shop.getSpeed() * GC.RUSH_SPEED_MULT;
+                // Emit fever particles projected from crowd 3D center
+                const vec = new THREE.Vector3();
+                vec.setFromMatrixPosition(this.crowd.group.matrixWorld);
+                vec.project(this.camera);
+                const sx = (vec.x * 0.5 + 0.5) * GC.W;
+                const sy = -(vec.y * 0.5 - 0.5) * GC.H;
+                this.particles.feverTrail(sx, sy, 4);
+            }
             this.crowd.update(dt, true);
             this.gates.update(dt, this.crowd.worldY);
             this.obstacles.update(dt, this.crowd.worldY);
@@ -444,9 +510,12 @@ class Game {
             targetX = this.crowd.group.position.x * 0.7;
         }
         
-        this.camera.position.x = Utils.lerp(this.camera.position.x, targetX, 0.1);
-        this.camera.position.y = Utils.lerp(this.camera.position.y, targetY, 0.1);
-        this.camera.position.z = Utils.lerp(this.camera.position.z, targetZ, 0.15);
+        const lerpCamX = 1 - Math.pow(1 - 0.15, dt * 60);
+        const lerpCamZ = 1 - Math.pow(1 - 0.22, dt * 60);
+
+        this.camera.position.x = Utils.lerp(this.camera.position.x, targetX, lerpCamX);
+        this.camera.position.y = Utils.lerp(this.camera.position.y, targetY, lerpCamX);
+        this.camera.position.z = Utils.lerp(this.camera.position.z, targetZ, lerpCamZ);
         
         // Apply 3D Screen Shake from screenFx
         let cx = this.camera.position.x;

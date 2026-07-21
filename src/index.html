@@ -42,33 +42,48 @@
         <canvas id="uiCanvas"></canvas>
     </div>
 
-    <!-- Three.js (0.150.1) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.150.1/three.min.js"></script>
+    <!-- Three.js (0.150.1 Local Standalone Library with CDN Fallback) -->
+    <script src="js/three.min.js?v=16"></script>
+    <script>if (typeof THREE === 'undefined') document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.150.1/three.min.js"><\/script>');</script>
 
     <!-- Scripts (order matters — dependencies first) -->
-    <script src="js/utils.js?v=9"></script>
-    <script src="js/effects.js?v=9"></script>
-    <script src="js/sound.js?v=9"></script>
-    <script src="js/combo.js?v=9"></script>
-    <script src="js/level.js?v=9"></script>
-    <script src="js/crowd.js?v=9"></script>
-    <script src="js/gate.js?v=9"></script>
-    <script src="js/obstacles.js?v=9"></script>
-    <script src="js/enemy.js?v=9"></script>
-    <script src="js/fortress.js?v=9"></script>
-    <script src="js/shop.js?v=9"></script>
-    <script src="js/ui.js?v=9"></script>
-    <script src="js/game.js?v=9"></script>
+    <script src="js/utils.js?v=15"></script>
+    <script src="js/effects.js?v=15"></script>
+    <script src="js/sound.js?v=15"></script>
+    <script src="js/combo.js?v=15"></script>
+    <script src="js/level.js?v=15"></script>
+    <script src="js/crowd.js?v=15"></script>
+    <script src="js/gate.js?v=15"></script>
+    <script src="js/obstacles.js?v=15"></script>
+    <script src="js/enemy.js?v=15"></script>
+    <script src="js/fortress.js?v=15"></script>
+    <script src="js/shop.js?v=15"></script>
+    <script src="js/ui.js?v=15"></script>
+    <script src="js/game.js?v=15"></script>
 
     <script>
-        // Hide loading screen once everything is ready
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const loadingScreen = document.getElementById('loading-screen');
+        // Dismiss loading screen reliably
+        function dismissLoadingScreen() {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen && !loadingScreen.classList.contains('hidden')) {
                 loadingScreen.classList.add('hidden');
-                setTimeout(() => loadingScreen.remove(), 600);
-            }, 1300);
-        });
+                setTimeout(() => { try { loadingScreen.remove(); } catch(e){} }, 600);
+            }
+
+            // Capacitor native Play Store integration
+            if (window.Capacitor && window.Capacitor.Plugins) {
+                const { SplashScreen, StatusBar } = window.Capacitor.Plugins;
+                if (SplashScreen) {
+                    try { SplashScreen.hide(); } catch(e){}
+                }
+                if (StatusBar) {
+                    try { StatusBar.hide(); } catch(e){}
+                }
+            }
+        }
+        window.addEventListener('load', () => setTimeout(dismissLoadingScreen, 400));
+        // Fallback safety timeout
+        setTimeout(dismissLoadingScreen, 1200);
     </script>
 </body>
 </html>

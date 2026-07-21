@@ -9,7 +9,8 @@ class Gate {
         this.label = cfg.label;
         this.side = side;
         this.y = yPos;
-        this.special = (this.type === 'golden' || this.type === 'shield' || this.type === 'explode' || this.type === 'giant' || this.type === 'archer');
+        this.moving = cfg.moving || false;
+        this.special = (this.type === 'golden' || this.type === 'shield' || this.type === 'explode' || this.type === 'giant' || this.type === 'archer' || this.type === 'jackpot');
         this.isPositive = this.special ||
                           (this.type === 'multiply' && this.value > 1) ||
                           (this.type === 'add' && this.value > 0);
@@ -25,6 +26,7 @@ class Gate {
         else if (this.type === 'explode') cHex = 0xFF6600;
         else if (this.type === 'giant') cHex = 0xCC22FF;
         else if (this.type === 'archer') cHex = 0x00BB55;
+        else if (this.type === 'jackpot') cHex = 0xFF00AA;
         else if (!this.isPositive) cHex = 0xFF3344;
         
         // Create thick rectangular block
@@ -41,8 +43,8 @@ class Gate {
         
         // Position: worldY maps to negative Z. Left/Right maps to X.
         const zPos = -this.y * 0.15;
-        const xPos = side === 'left' ? -17 : 17;
-        this.mesh.position.set(xPos, 6, zPos); // Y=6 so it rests on the ground (height 12 / 2)
+        this.baseX = side === 'left' ? -17 : 17;
+        this.mesh.position.set(this.baseX, 6, zPos);
         
         scene.add(this.mesh);
         
@@ -58,6 +60,9 @@ class Gate {
     
     update(dt) {
         this.pulse += dt * 3;
+        if (this.moving && !this.triggered) {
+            this.mesh.position.x = this.baseX + Math.sin(this.pulse * 1.2) * 8;
+        }
         if (this.triggered) {
             this.glow *= 0.96;
         } else {
@@ -168,10 +173,23 @@ class GateManager {
             this.game.floatingText.spawn(`💥 CLEARED ${cleared}!`, sx, sy - 30, '#FF4400');
             if (sound) sound.explode();
 
+        } else if (gate.type === 'jackpot') {
+            const mult = combo ? combo.onPositive() : 1;
+            const jackpotAmount = Math.round(50 * mult);
+            crowd.addUnits(jackpotAmount);
+            if (this.game.addFever) this.game.addFever(30);
+            fx.flash('rgba(255,0,170,0.6)', 0.5);
+            fx.shake(8, 0.4);
+            parts.confetti(sx, sy, 70);
+            parts.coinExplosion(sx, sy, 50);
+            this.game.floatingText.spawn(`🎰 JACKPOT! +${jackpotAmount}`, sx, sy - 30, '#FF00AA');
+            if (sound) sound.powerup();
+
         } else if (gate.type === 'giant' || gate.type === 'archer') {
             const mult = combo ? combo.onPositive() : 1;
             const num = Math.round(gate.value * mult);
             crowd.addUnits(num, gate.type);
+            if (this.game.addFever) this.game.addFever(15);
             const color = gate.type === 'giant' ? '#FF22FF' : '#55FF55';
             fx.flash(`rgba(${gate.type==='giant'?'255,34,255':'85,255,85'},0.4)`, 0.3);
             parts.burst(sx, sy, 30, [color, '#FFFFFF'], 80, 200, 0.6, 1.2, 3, 6, 'circle', 100);
@@ -183,8 +201,7 @@ class GateManager {
             const before = crowd.count;
             crowd.applyGate(gate.type, Math.round(gate.value * mult));
             const gained = crowd.count - before;
-            parts.confetti(sx, sy, 35);
-            fx.flash('rgba(0,255,100,0.4)', 0.3);
+            if (this.game.addFever) this.game.addFever(12);
             parts.confetti(sx, sy, 35);
             fx.flash('rgba(0,255,100,0.4)', 0.3);
             fx.shake(2, 0.2); // Add subtle screen shake on normal positive gates

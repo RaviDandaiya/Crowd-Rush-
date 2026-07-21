@@ -32,6 +32,9 @@ class Fortress {
             this.group.remove(this.group.children[0]); 
         }
         
+        this.group.scale.set(1, 1, 1);
+        this.group.rotation.set(0, 0, 0);
+        this.group.visible = true;
         this.group.position.set(0, 0, -this.worldY * 0.15);
 
         // Build Cyberpunk Fortress Mesh
@@ -166,25 +169,43 @@ class Fortress {
                         this.game.screenFx.flash('rgba(255,255,255,0.8)', 0.6);
                         if (this.game.sound) this.game.sound.victory();
                         
-                        // Collapse animation
-                        this.group.position.y = -20;
-                        
                         setTimeout(() => this.game.showResults(), 1800);
                     }
                     break;
                 }
                 if (this.game.crowd.count <= 0) {
                     this.coinsEarned = this.damageDealt;
-                    this.state = 'destroyed';
+                    this.state = 'failed';
                     setTimeout(() => { this.game.showResults(); }, 1000);
                     break;
                 }
             }
         }
+
+        if (this.state === 'destroyed') {
+            if (this.group.position.y > -40 && this.group.scale.x > 0.01) {
+                this.group.position.y -= dt * 22;
+                this.group.rotation.x += dt * 1.4;
+                this.group.rotation.z += dt * 0.7;
+                const newScale = Math.max(0, this.group.scale.x - dt * 0.65);
+                this.group.scale.set(newScale, newScale, newScale);
+                
+                // Spawn cyberpunk debris while collapsing
+                if (Math.random() < 0.25) {
+                    this.vec.setFromMatrixPosition(this.group.matrixWorld);
+                    this.vec.project(this.game.camera);
+                    const screenY = -(this.vec.y * 0.5 - 0.5) * GC.H;
+                    const screenX = GC.W/2 + Utils.randomRange(-30, 30);
+                    this.game.particles.brickDebris(screenX, screenY + 40, '#8800CC', 5);
+                }
+            } else {
+                this.group.visible = false;
+            }
+        }
     }
 
     draw(ctx, crowdWorldY) {
-        if (this.state === 'destroyed') return;
+        if (this.state === 'destroyed' || this.state === 'failed') return;
         
         this.vec.setFromMatrixPosition(this.group.matrixWorld);
         this.vec.project(this.game.camera);

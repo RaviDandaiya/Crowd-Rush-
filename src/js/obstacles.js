@@ -161,7 +161,8 @@ class ObstacleManager {
             }
 
             if (isHit) {
-                if (!this.game.crowd.shielded && removed < 2) {
+                const isProtected = this.game.crowd.shielded || this.game.feverActive;
+                if (!isProtected && removed < 2) {
                     u.alive = false;
                     u.targetScale = 0;
                     removed++;
@@ -186,13 +187,13 @@ class ObstacleManager {
                             this.game.particles.burst(sx, sy, 3, ['#FFCC00', '#FF3300'], 40, 90, 0.4, 0.8, 1, 2, 'circle', 120);
                         }
                     }
-                } else if (this.game.crowd.shielded) {
+                } else if (isProtected) {
                     if (this.game.particles && Math.random() < 0.2) {
                         this.vec.set(uWorldX, 1.2, uWorldZ);
                         this.vec.project(this.game.camera);
                         const sx = (this.vec.x * 0.5 + 0.5) * GC.W;
                         const sy = -(this.vec.y * 0.5 - 0.5) * GC.H;
-                        this.game.particles.burst(sx, sy, 2, ['#00FFEE', '#FFFFFF'], 20, 60, 0.3, 0.6, 1, 3, 'circle', 100);
+                        this.game.particles.burst(sx, sy, 2, ['#00FFEE', '#FF00AA', '#FFFFFF'], 20, 60, 0.3, 0.6, 1, 3, 'circle', 100);
                     }
                 }
             }

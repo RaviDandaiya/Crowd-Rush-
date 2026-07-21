@@ -243,4 +243,42 @@ class SoundManager {
             o.start(t); o.stop(t + 0.12);
         });
     }
+
+    // Fever / Rush mode activation — epic energetic arpeggio
+    feverRush() {
+        this._play(ctx => {
+            const t = ctx.currentTime;
+            const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98]; // C E G C E G
+            notes.forEach((f, i) => {
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.connect(g); g.connect(ctx.destination);
+                o.type = 'sawtooth';
+                o.frequency.value = f;
+                const st = t + i * 0.06;
+                g.gain.setValueAtTime(0.25, st);
+                g.gain.exponentialRampToValueAtTime(0.001, st + 0.4);
+                o.start(st); o.stop(st + 0.45);
+            });
+        });
+    }
+
+    // Power-up pickup chime
+    powerup() {
+        this._play(ctx => {
+            const t = ctx.currentTime;
+            const freqs = [587.33, 880.00, 1174.66]; // D5, A5, D6
+            freqs.forEach((f, i) => {
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.connect(g); g.connect(ctx.destination);
+                o.type = 'triangle';
+                o.frequency.value = f;
+                const st = t + i * 0.08;
+                g.gain.setValueAtTime(0.3, st);
+                g.gain.exponentialRampToValueAtTime(0.001, st + 0.35);
+                o.start(st); o.stop(st + 0.4);
+            });
+        });
+    }
 }

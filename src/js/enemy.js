@@ -8,6 +8,7 @@ const ENEMY_TYPES = {
     berserker:  { color: 0xFF8800, headColor: '#FFAA00', outlineColor: '#AA4400', emoji: '💢', name: 'Berserker' },
     sniper:     { color: 0x22AA22, headColor: '#44CC44', outlineColor: '#005500', emoji: '🎯', name: 'Sniper' },
     bomber:     { color: 0xAA22AA, headColor: '#CC44CC', outlineColor: '#550055', emoji: '💣', name: 'Bomber' },
+    split_boss: { color: 0x8800CC, headColor: '#AA44FF', outlineColor: '#440066', emoji: '👹', name: 'Split Boss' },
 };
 
 class EnemyMob {
@@ -153,12 +154,22 @@ class EnemyMob {
 
     removeAmount(amount) {
         if (amount <= 0 || this.count <= 0) return 0;
-        let removed = 0;
-        let visualRemoves = Math.min(amount, 3);
         
-        for (let i = this.units.length - 1; i >= 0 && visualRemoves > 0; i--) {
-            if (this.units[i].alive) {
-                const u = this.units[i];
+        const prevCount = this.count;
+        this.count = Math.max(0, this.count - amount);
+        const removed = prevCount - this.count;
+        
+        // Calculate how many visual units should remain alive
+        // Ensure at least 1 remains alive as long as this.count > 0
+        const desiredAlive = this.count > 0 ? Math.max(1, Math.ceil((this.count / this.maxCount) * this.units.length)) : 0;
+        const currentAlive = this.units.filter(u => u.alive).length;
+        
+        console.log(`[enemy removeAmount] count: ${this.count}, maxCount: ${this.maxCount}, units: ${this.units.length}, desiredAlive: ${desiredAlive}, currentAlive: ${currentAlive}, amount: ${amount}`);
+        
+        let toKill = currentAlive - desiredAlive;
+        for (let i = this.units.length - 1; i >= 0 && toKill > 0; i--) {
+            const u = this.units[i];
+            if (u.alive) {
                 u.alive = false;
                 u.targetScale = 0;
                 // Death burst: fly backward (away from camera, enemy side)
@@ -166,16 +177,10 @@ class EnemyMob {
                 u.deathVz = Utils.randomRange(-25, -8);
                 u.deathVy = Utils.randomRange(8, 18);
                 u.deathSpin = Utils.randomRange(-8, 8);
-                visualRemoves--;
-                removed++;
-                this.count = Math.max(0, this.count - 1);
+                toKill--;
             }
         }
-        const remainingToRemove = Math.min(amount - removed, this.count);
-        if (remainingToRemove > 0) {
-            this.count -= remainingToRemove;
-            removed += remainingToRemove;
-        }
+        
         return removed;
     }
 
@@ -187,37 +192,74 @@ class EnemyMob {
             u.phase += u.speed * dt;
             
             if (u.alive) {
-                // Bobbing hop animation
-                u.mesh.position.y = Math.abs(Math.sin(u.phase)) * 2;
+                u.mesh.visible = true; // Ensure they are visible when alive!
                 
                 let spreadScale = Math.min(1 + Math.sqrt(Math.min(this.count, 2000)) * 0.05, 1.8);
                 
                 let tx = u.ox * spreadScale;
                 let tz = u.oz * spreadScale;
 
-                if (game && game.state === 'CLASH' && this.state === 'clashing') {
-                    if (u.ringAngle === undefined) u.ringAngle = Math.atan2(u.oz, u.ox);
-                    u.ringAngle -= dt * 8.0; // fast counterclockwise
-                    const orbitRadius = 9;
-                    // Small offset so circles heavily overlap — fighting in shared space
-                    tx = Math.cos(u.ringAngle) * orbitRadius;
-                    tz = (-orbitRadius * 0.2) + Math.sin(u.ringAngle) * orbitRadius;
-                    // Attack lunge: scale up + jump high when lunging into crowd space
-                    const attacking = Math.sin(u.ringAngle) > 0.45;
-                    u.targetScale = attacking ? 1.3 : 1.0;
-                    u.mesh.position.y = attacking
-                        ? Math.abs(Math.sin(u.phase)) * 5 + 2.5
-                        : Math.abs(Math.sin(u.phase)) * 2;
-                    // Face toward crowd (toward camera)
-                    u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, 0, 0.12);
+                let sxFactor = 1.0;
+                let syFactor = 1.0;
+                let szFactor = 1.0;
+                const clashing = game && game.state === 'CLASH' && this.state === 'clashing';
+
+                if (clashing) {
+                    if (u.ringAngle === undefined) {
+                        // Spacing based on index to form a clean line-by-line chain
+                        u.ringAngle = i * 0.15;
+                    }
+                    u.ringAngle -= dt * 6.5; // rotate in opposite direction to meet head-on!
+                    
+                    const t = u.ringAngle;
+                    const orbitW = 9.0;
+                    const orbitH = 4.5;
+                    
+                    // Circular loop on enemy's side: Z starts at 1.875 (clash midpoint) and goes forward
+                    tx = Math.sin(t) * orbitW;
+                    tz = -(1 - Math.cos(t)) * orbitH + 1.875;
+                    
+                    // Flat on the ground (no up-down animation when clashing)
+                    const isBoss = this.type === 'split_boss';
+                    u.mesh.position.y = isBoss ? 6.5 : 2.2;
+                    
+                    const attacking = tz > 2.5; // deep in clash zone
+                    u.targetScale = attacking ? 1.25 : 1.0;
+                    
+                    if (attacking) {
+                        // Stretch: taller body, thinner radius
+                        syFactor = 1.25;
+                        sxFactor = 0.85;
+                        szFactor = 0.85;
+                        
+                        // Lean forward in direction of attack (+Z)
+                        u.mesh.rotation.x = Utils.lerp(u.mesh.rotation.x || 0, -0.35, 0.2);
+                    } else {
+                        // Squash when returning/landing
+                        syFactor = 0.85;
+                        sxFactor = 1.15;
+                        szFactor = 1.15;
+                        u.mesh.rotation.x = Utils.lerp(u.mesh.rotation.x || 0, 0, 0.2);
+                    }
+                    
+                    // Face moving direction (heading yaw rotation)
+                    const vx = -Math.cos(t) * orbitW;
+                    const vz = Math.sin(t) * orbitH;
+                    const targetRotY = Math.atan2(vx, vz);
+                    u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, targetRotY, 0.18);
                 } else {
+                    u.mesh.position.y = Math.abs(Math.sin(u.phase)) * 2;
                     if (u.ringAngle !== undefined) u.ringAngle = undefined;
                     u.targetScale = 1.0;
+                    u.mesh.rotation.x = Utils.lerp(u.mesh.rotation.x || 0, 0, 0.1);
                     u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, 0, 0.08);
                 }
 
-                u.mesh.position.x = Utils.lerp(u.mesh.position.x, tx, 0.15);
-                u.mesh.position.z = Utils.lerp(u.mesh.position.z, tz, 0.15);
+                u.mesh.position.x = Utils.lerp(u.mesh.position.x, tx, 0.18);
+                u.mesh.position.z = Utils.lerp(u.mesh.position.z, tz, 0.18);
+                
+                u.scale = Utils.lerp(u.scale, u.targetScale, 0.18);
+                u.mesh.scale.set(u.scale * sxFactor, u.scale * syFactor, u.scale * szFactor);
             } else {
                 // Death burst: fly outward from center
                 if (u.deathVx !== undefined) {
@@ -229,10 +271,10 @@ class EnemyMob {
                     u.deathVz *= 0.85;
                     u.mesh.rotation.z += u.deathSpin * dt;
                 }
+                
+                u.scale = Utils.lerp(u.scale, u.targetScale, 0.18);
+                u.mesh.scale.set(u.scale, u.scale, u.scale);
             }
-            
-            u.scale = Utils.lerp(u.scale, u.targetScale, 0.18);
-            u.mesh.scale.set(u.scale, u.scale, u.scale);
             
             if (!u.alive && u.scale < 0.05) {
                 u.mesh.visible = false;
@@ -363,16 +405,7 @@ class EnemyManager {
             if (dist < range) {
                 cleared += mob.count;
                 mob.count = 0;
-                mob.state = 'defeated';
-                for (const u of mob.units) {
-                    u.alive = false;
-                    u.targetScale = 0;
-                }
-                if (this.currentClash !== null) {
-                    this.currentClash = null;
-                    this.clashAcc = 0;
-                    this.game.state = 'PLAYING';
-                }
+                this._defeatMob(mob, crowdWorldY);
                 if (this.game.sound) this.game.sound.explode();
             }
         }
@@ -521,16 +554,12 @@ class EnemyManager {
             if (wentLeft && wentRight) {
                 mob.splitSucceeded = true;
                 mob.splitPhase = 'success';
-                mob.state = 'defeated';
                 mob.count = 0;
                 for (const u of mob.units) u.targetScale = 0;
-                this.currentClash = null;
-                this.clashAcc = 0;
-                this.game.state = 'PLAYING';
-                this.game.screenFx.pulseVignette('transparent', 0);
-                this.game.particles.confetti(GC.W / 2, GC.CROWD_SCREEN_Y - 100, 80);
-                this.game.particles.coinExplosion(GC.W / 2, GC.CROWD_SCREEN_Y - 100, 40);
-                this.game.screenFx.flash('rgba(255,215,0,0.6)', 0.6);
+                
+                this._defeatMob(mob, crowdWorldY);
+                
+                // Trigger boss-specific popups/sounds
                 if (this.game.combo) this.game.combo.addNumberPop(GC.W/2, GC.CROWD_SCREEN_Y - 140, '⚡ BOSS SPLIT!', '#FFD700');
                 if (this.game.sound) this.game.sound.victory();
             } else if (mob.splitTimer <= 0) {

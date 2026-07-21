@@ -12,6 +12,9 @@ class UI {
         this.showingWorldMap = false;
         this.showingSettings = false;
         this.showingLeaderboard = false;
+        this.showingPrivacyPolicy = false;
+        this.showingTerms = false;
+        this.activeButtons = [];
         this.resultData = null;
         this.t = 0;
         
@@ -91,37 +94,41 @@ class UI {
     // GAMEPLAY HUD
     // ============================================================
     drawHUD(ctx) {
+        this.activeButtons = [];
         const w = GC.W;
 
         // === 1. TOP PROGRESS BAR ===
         this._drawProgressBar(ctx, w);
 
-        // === 2. COINS / GEMS TOP-RIGHT ===
+        // === 2. FEVER METER BAR ===
+        this._drawFeverMeter(ctx, w);
+
+        // === 3. COINS / GEMS TOP-RIGHT ===
         this._drawCoinBadge(ctx, w);
 
-        // === 3. CROWD COUNT BADGE (above the crowd on-screen) ===
+        // === 4. CROWD COUNT BADGE (above the crowd on-screen) ===
         this._drawCrowdBadge(ctx, w);
 
-        // === 4. EXIT / PAUSE BUTTON (top-left) ===
+        // === 5. EXIT / PAUSE BUTTON (top-left) ===
         this._drawExitButton(ctx);
 
-        // === 5. FORTRESS PHASE + ATTACK BANNER ===
+        // === 6. FORTRESS PHASE + ATTACK BANNER ===
         if (this.game.state === 'FORTRESS_ATTACK') {
             this._drawAttackBanner(ctx, w);
         }
 
-        // === 6. CLASH INDICATOR ===
+        // === 7. CLASH INDICATOR ===
         if (this.game.state === 'CLASH') {
             this._drawClashBanner(ctx, w);
         }
 
-        // === 7. COMBO INDICATOR ===
+        // === 8. COMBO INDICATOR ===
         const combo = this.game.combo;
         if (combo && combo.count >= 2) {
             this._drawComboIndicator(ctx, combo);
         }
 
-        // === 8. SHIELD TIMER ===
+        // === 9. SHIELD TIMER ===
         if (this.game.crowd.shielded && this.game.crowd.shieldTime > 0) {
             this._drawShieldTimer(ctx);
         }
@@ -192,6 +199,66 @@ class UI {
         ctx.restore();
     }
 
+    _drawFeverMeter(ctx, w) {
+        const fever = this.game.feverGauge || 0;
+        const max = GC.FEVER_MAX;
+        const ratio = Utils.clamp(fever / max, 0, 1);
+        const isActive = this.game.feverActive;
+
+        ctx.save();
+        const bx = w / 2 - 90;
+        const by = 42;
+        const bw = 180;
+        const bh = 14;
+
+        // Background Glass Container
+        ctx.fillStyle = 'rgba(10, 15, 30, 0.6)';
+        ctx.strokeStyle = isActive ? 'rgba(0, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = isActive ? 2 : 1;
+        ctx.shadowColor = isActive ? '#00FFFF' : 'transparent';
+        ctx.shadowBlur = isActive ? 15 : 0;
+
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, 7);
+        ctx.fill();
+        ctx.stroke();
+
+        // Fill Bar
+        if (ratio > 0) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(bx + 2, by + 2, Math.max(8, (bw - 4) * ratio), bh - 4, 5);
+            ctx.clip();
+
+            const gradient = ctx.createLinearGradient(bx, by, bx + bw, by);
+            if (isActive) {
+                const shift = (this.t * 300) % 360;
+                gradient.addColorStop(0, `hsl(${shift}, 100%, 60%)`);
+                gradient.addColorStop(0.5, `hsl(${(shift + 120) % 360}, 100%, 65%)`);
+                gradient.addColorStop(1, `hsl(${(shift + 240) % 360}, 100%, 60%)`);
+            } else {
+                gradient.addColorStop(0, '#FF00A0');
+                gradient.addColorStop(0.5, '#FF8800');
+                gradient.addColorStop(1, '#FFCC00');
+            }
+
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Label / Text
+        ctx.font = '900 10px "Outfit", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.shadowColor = isActive ? '#00FFFF' : 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 6;
+        ctx.fillText(isActive ? '🔥 HYPER RUSH! 🔥' : `FEVER ${Math.floor(ratio * 100)}%`, w / 2, by + bh / 2 + 1);
+
+        ctx.restore();
+    }
+
     _drawExitButton(ctx) {
         // Small circular exit/home button at top-left
         const cx = 26, cy = 17, r = 13;
@@ -218,6 +285,7 @@ class UI {
         ctx.fillText('🏠', cx, cy);
 
         ctx.restore();
+        this._regBtn(cx - r, cy - r, r * 2, r * 2, 'exitToMenu');
     }
 
     _drawCoinBadge(ctx, w) {
@@ -471,6 +539,12 @@ class UI {
         ctx.restore();
     }
 
+    _regBtn(x, y, w, h, id) {
+        if (id) {
+            this.activeButtons.push({ x, y, w, h, id });
+        }
+    }
+
     // ============================================================
     // BUTTON HELPER — 3D Pill / Tactile style
     // ============================================================
@@ -510,6 +584,7 @@ class UI {
         ctx.fillText(text, x, y - 1);
 
         ctx.restore();
+        if (id) this._regBtn(x - w/2, y - h/2, w, h, id);
         return { x: x - w/2, y: y - h/2, w, h, id };
     }
 
@@ -517,12 +592,15 @@ class UI {
     // MAIN MENU
     // ============================================================
     drawMainMenu(ctx) {
+        this.activeButtons = [];
         const w = GC.W, h = GC.H;
 
-        if (this.showingShop)        { this.drawShop(ctx); return; }
-        if (this.showingWorldMap)    { this.drawWorldMap(ctx); return; }
-        if (this.showingSettings)    { this.drawSettings(ctx); return; }
-        if (this.showingLeaderboard) { this.drawLeaderboard(ctx); return; }
+        if (this.showingPrivacyPolicy) { this.drawPrivacyPolicy(ctx); return; }
+        if (this.showingTerms)         { this.drawTerms(ctx); return; }
+        if (this.showingShop)          { this.drawShop(ctx); return; }
+        if (this.showingWorldMap)      { this.drawWorldMap(ctx); return; }
+        if (this.showingSettings)      { this.drawSettings(ctx); return; }
+        if (this.showingLeaderboard)   { this.drawLeaderboard(ctx); return; }
 
         // Gradient background
         const bg = ctx.createLinearGradient(0, 0, 0, h);
@@ -672,6 +750,7 @@ class UI {
         ctx.fillText(label, x, y + 14);
 
         ctx.restore();
+        if (id) this._regBtn(x - w/2, y - h/2, w, h, id);
     }
 
     _drawMenuCoinBadge(ctx, w, h) {
@@ -716,6 +795,7 @@ class UI {
     // WORLD MAP
     // ============================================================
     drawWorldMap(ctx) {
+        this.activeButtons = [];
         const w = GC.W, h = GC.H;
         // Dark bg
         const bg = ctx.createLinearGradient(0, 0, 0, h);
@@ -799,6 +879,10 @@ class UI {
                     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                     ctx.fillText(lid, dotX, yp + 60);
 
+                    if (lid <= highest) {
+                        this._regBtn(dotX - 22, yp + 60 - 22, 44, 44, `wm_play_${lid}`);
+                    }
+
                     // Name below
                     ctx.fillStyle = 'rgba(255,255,255,0.6)';
                     ctx.font = '9px "Outfit", sans-serif';
@@ -818,6 +902,7 @@ class UI {
     // SETTINGS
     // ============================================================
     drawSettings(ctx) {
+        this.activeButtons = [];
         const w = GC.W, h = GC.H;
         const bg = ctx.createLinearGradient(0, 0, 0, h);
         bg.addColorStop(0, '#0A1628'); bg.addColorStop(1, '#0D2240');
@@ -848,12 +933,18 @@ class UI {
             } else if (id1) {
                 this._btn(ctx, w - 54, yp + 26, 62, 26, lbl1, '#00AA55', '#00CC66', id1);
             }
+
+            // Full row click target registration
+            if (id1) this._regBtn(14, yp, w - 28, 52, id1);
+
             yp += 62;
         };
 
         row('🔊 Sound', s.soundEnabled ? 'ON' : 'OFF', 'set_snd_toggle', s.soundEnabled ? 'Mute' : 'On', null, null);
         row('🎮 Sensitivity', `${s.sensitivity.toFixed(1)}x`, 'set_sens_up', '+', 'set_sens_dn', '−');
         row('🖥️ Graphics', s.graphicsQuality.toUpperCase(), 'set_gfx_toggle', s.graphicsQuality === 'high' ? 'Low' : 'High', null, null);
+        row('📋 Privacy Policy', 'Play Store Compliant', 'set_privacy', 'View', null, null);
+        row('📜 Terms & Conditions', 'User Agreement', 'set_terms', 'View', null, null);
 
         // Reset row
         ctx.fillStyle = 'rgba(255,50,50,0.08)';
@@ -868,14 +959,123 @@ class UI {
         ctx.font = '11px "Outfit", sans-serif';
         ctx.fillText('Clears all coins, levels & upgrades', 26, yp + 37);
         this._btn(ctx, w - 54, yp + 26, 62, 26, 'RESET', '#882222', '#CC3333', 'set_reset');
+        this._regBtn(14, yp, w - 28, 52, 'set_reset');
 
         this._btn(ctx, w / 2, h - 34, 130, 34, '← Back', '#334466', '#445577', 'settingsBack');
+    }
+
+    // ============================================================
+    // PRIVACY POLICY & TERMS MODALS
+    // ============================================================
+    drawPrivacyPolicy(ctx) {
+        this.activeButtons = [];
+        const w = GC.W, h = GC.H;
+        const bg = ctx.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, '#0A1628'); bg.addColorStop(1, '#0D2240');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+
+        this._drawScreenHeader(ctx, w, '📋 PRIVACY POLICY', '#00C8FF');
+
+        const boxX = 14, boxY = 65, boxW = w - 28, boxH = h - 115;
+        ctx.fillStyle = 'rgba(10, 20, 40, 0.75)';
+        ctx.strokeStyle = 'rgba(0, 200, 255, 0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(boxX, boxY, boxW, boxH, 12); ctx.fill(); ctx.stroke();
+
+        const textLines = [
+            "PRIVACY POLICY — CROWD RUSH",
+            "Effective Date: July 2026",
+            "",
+            "1. INFORMATION WE COLLECT",
+            "Crowd Rush does not collect personal identifiers.",
+            "Game progress, coins, and high scores are saved",
+            "locally on your device storage.",
+            "",
+            "2. ADVERTISING & ANALYTICS",
+            "Third-party ad networks (Google AdMob) may use",
+            "anonymized identifiers to serve tailored ads.",
+            "",
+            "3. DATA SECURITY & STORAGE",
+            "Your save data remains local to your device.",
+            "Uninstalling the app clears local saved data.",
+            "",
+            "4. CONTACT & SUPPORT",
+            "For inquiries, contact: support@crowdrush.com"
+        ];
+
+        let lineY = boxY + 14;
+        for (const line of textLines) {
+            if (line.startsWith("PRIVACY POLICY") || line.startsWith("1.") || line.startsWith("2.") || line.startsWith("3.") || line.startsWith("4.")) {
+                ctx.fillStyle = '#00C8FF';
+                ctx.font = 'bold 12px "Outfit", sans-serif';
+            } else {
+                ctx.fillStyle = '#AAC8EE';
+                ctx.font = '11px "Outfit", sans-serif';
+            }
+            ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+            ctx.fillText(line, boxX + 16, lineY);
+            lineY += 18;
+        }
+
+        this._btn(ctx, w / 2, h - 30, 130, 32, '← Back', '#334466', '#445577', 'privacyBack');
+    }
+
+    drawTerms(ctx) {
+        this.activeButtons = [];
+        const w = GC.W, h = GC.H;
+        const bg = ctx.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, '#0A1628'); bg.addColorStop(1, '#0D2240');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+
+        this._drawScreenHeader(ctx, w, '📜 TERMS & CONDITIONS', '#FFC800');
+
+        const boxX = 14, boxY = 65, boxW = w - 28, boxH = h - 115;
+        ctx.fillStyle = 'rgba(10, 20, 40, 0.75)';
+        ctx.strokeStyle = 'rgba(255, 200, 0, 0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(boxX, boxY, boxW, boxH, 12); ctx.fill(); ctx.stroke();
+
+        const textLines = [
+            "TERMS AND CONDITIONS",
+            "Last Updated: July 2026",
+            "",
+            "1. ACCEPTANCE OF TERMS",
+            "By playing Crowd Rush, you agree to these terms.",
+            "",
+            "2. INTELLECTUAL PROPERTY",
+            "All artwork, code, sound effects, and gameplay",
+            "mechanics are property of Crowd Rush Games.",
+            "",
+            "3. IN-GAME VIRTUAL ITEMS",
+            "Coins and unlocked skins are non-transferable",
+            "virtual items with no real monetary value.",
+            "",
+            "4. LIMITATION OF LIABILITY",
+            "Crowd Rush is provided 'as is' without warranty."
+        ];
+
+        let lineY = boxY + 14;
+        for (const line of textLines) {
+            if (line.startsWith("TERMS AND CONDITIONS") || line.startsWith("1.") || line.startsWith("2.") || line.startsWith("3.") || line.startsWith("4.")) {
+                ctx.fillStyle = '#FFC800';
+                ctx.font = 'bold 12px "Outfit", sans-serif';
+            } else {
+                ctx.fillStyle = '#AAC8EE';
+                ctx.font = '11px "Outfit", sans-serif';
+            }
+            ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+            ctx.fillText(line, boxX + 16, lineY);
+            lineY += 20;
+        }
+
+        this._btn(ctx, w / 2, h - 30, 130, 32, '← Back', '#334466', '#445577', 'termsBack');
     }
 
     // ============================================================
     // LEADERBOARD
     // ============================================================
     drawLeaderboard(ctx) {
+        this.activeButtons = [];
         const w = GC.W, h = GC.H;
         const bg = ctx.createLinearGradient(0, 0, 0, h);
         bg.addColorStop(0, '#0A1628'); bg.addColorStop(1, '#0D2240');
@@ -944,6 +1144,7 @@ class UI {
     // GAME OVER
     // ============================================================
     drawGameOver(ctx) {
+        this.activeButtons = [];
         const w = GC.W, h = GC.H;
 
         // Dark overlay
@@ -991,6 +1192,7 @@ class UI {
     // RESULTS
     // ============================================================
     drawResults(ctx) {
+        this.activeButtons = [];
         const w = GC.W, h = GC.H;
 
         const bg = ctx.createLinearGradient(0, 0, 0, h);
@@ -1079,6 +1281,7 @@ class UI {
     // SHOP
     // ============================================================
     drawShop(ctx) {
+        this.activeButtons = [];
         const w = GC.W, h = GC.H;
         const bg = ctx.createLinearGradient(0, 0, 0, h);
         bg.addColorStop(0, '#0A1628'); bg.addColorStop(1, '#150A28');
@@ -1099,9 +1302,11 @@ class UI {
         this._drawSectionLabel(ctx, w, 85, '⚡ UPGRADES', '#00DDFF');
 
         const ups = [
-            { key: 'speed',      icon: '⚡', name: 'Run Speed',   desc: 'Move faster down the lane' },
-            { key: 'startCrowd', icon: '👥', name: 'Start Crowd', desc: 'More units at start (+5)' },
-            { key: 'gateMagnet', icon: '🧲', name: 'Gate Magnet', desc: 'Auto-steer to best gate' },
+            { key: 'speed',         icon: '⚡', name: 'Run Speed',      desc: 'Move faster down the lane' },
+            { key: 'startCrowd',    icon: '👥', name: 'Start Crowd',    desc: 'More units at start (+15)' },
+            { key: 'gateMagnet',    icon: '🧲', name: 'Gate Magnet',    desc: 'Auto-steer to best gate' },
+            { key: 'feverDuration', icon: '🔥', name: 'Fever Duration', desc: 'Extends Hyper Rush duration' },
+            { key: 'coinMagnet',    icon: '💎', name: 'Coin Magnet',    desc: 'Attracts bonus rewards' },
         ];
         let yp = 100;
         for (const u of ups) {
@@ -1237,6 +1442,13 @@ class UI {
     // CLICK HANDLING
     // ============================================================
     getButtons() {
+        if (this.activeButtons && this.activeButtons.length > 0) {
+            return this.activeButtons;
+        }
+        return this._getStaticButtons();
+    }
+
+    _getStaticButtons() {
         const w = GC.W, h = GC.H, btns = [];
         if (this.game.state === 'MENU') {
             if (this.showingShop) {
@@ -1269,13 +1481,19 @@ class UI {
                     }
                     yp += 114;
                 }
+            } else if (this.showingPrivacyPolicy) {
+                btns.push({ x: w/2-65, y: h-46, w: 130, h: 32, id: 'privacyBack' });
+            } else if (this.showingTerms) {
+                btns.push({ x: w/2-65, y: h-46, w: 130, h: 32, id: 'termsBack' });
             } else if (this.showingSettings) {
                 btns.push({ x: w/2-65, y: h-51, w: 130, h: 34, id: 'settingsBack' });
-                btns.push({ x: w-85, y: 85, w: 62, h: 26, id: 'set_snd_toggle' });
+                btns.push({ x: 14, y: 72, w: w - 28, h: 52, id: 'set_snd_toggle' });
                 btns.push({ x: w-116, y: 147, w: 42, h: 26, id: 'set_sens_up' });
                 btns.push({ x: w-67, y: 147, w: 42, h: 26, id: 'set_sens_dn' });
-                btns.push({ x: w-85, y: 209, w: 62, h: 26, id: 'set_gfx_toggle' });
-                btns.push({ x: w-85, y: 271, w: 62, h: 26, id: 'set_reset' });
+                btns.push({ x: 14, y: 196, w: w - 28, h: 52, id: 'set_gfx_toggle' });
+                btns.push({ x: 14, y: 258, w: w - 28, h: 52, id: 'set_privacy' });
+                btns.push({ x: 14, y: 320, w: w - 28, h: 52, id: 'set_terms' });
+                btns.push({ x: 14, y: 382, w: w - 28, h: 52, id: 'set_reset' });
             } else if (this.showingLeaderboard) {
                 btns.push({ x: w/2-65, y: h-51, w: 130, h: 34, id: 'lbBack' });
             } else {
@@ -1322,14 +1540,18 @@ class UI {
         const s = this.game.settings;
         switch(id) {
             case 'play': this.game.startLevel(this.game.shop.getCurrentLevel()); break;
-            case 'shop': this.showingShop = true; this.showingWorldMap = false; this.showingSettings = false; this.showingLeaderboard = false; break;
+            case 'shop': this.showingShop = true; this.showingWorldMap = false; this.showingSettings = false; this.showingLeaderboard = false; this.showingPrivacyPolicy = false; this.showingTerms = false; break;
             case 'shopBack': this.showingShop = false; break;
-            case 'worldMap': this.showingWorldMap = true; this.showingShop = false; this.showingSettings = false; this.showingLeaderboard = false; break;
+            case 'worldMap': this.showingWorldMap = true; this.showingShop = false; this.showingSettings = false; this.showingLeaderboard = false; this.showingPrivacyPolicy = false; this.showingTerms = false; break;
             case 'wmBack': this.showingWorldMap = false; break;
-            case 'settings': this.showingSettings = true; this.showingShop = false; this.showingWorldMap = false; this.showingLeaderboard = false; break;
-            case 'settingsBack': this.showingSettings = false; break;
-            case 'leaderboard': this.showingLeaderboard = true; this.showingShop = false; this.showingWorldMap = false; this.showingSettings = false; break;
+            case 'settings': this.showingSettings = true; this.showingShop = false; this.showingWorldMap = false; this.showingLeaderboard = false; this.showingPrivacyPolicy = false; this.showingTerms = false; break;
+            case 'settingsBack': this.showingSettings = false; this.showingPrivacyPolicy = false; this.showingTerms = false; break;
+            case 'leaderboard': this.showingLeaderboard = true; this.showingShop = false; this.showingWorldMap = false; this.showingSettings = false; this.showingPrivacyPolicy = false; this.showingTerms = false; break;
             case 'lbBack': this.showingLeaderboard = false; break;
+            case 'set_privacy': this.showingPrivacyPolicy = true; break;
+            case 'privacyBack': this.showingPrivacyPolicy = false; break;
+            case 'set_terms': this.showingTerms = true; break;
+            case 'termsBack': this.showingTerms = false; break;
             case 'prev': { const c = this.game.shop.getCurrentLevel(); if (c>1) this.game.shop.setCurrentLevel(c-1); } break;
             case 'next': { const c = this.game.shop.getCurrentLevel(); if (c<this.game.shop.getHighestLevel()) this.game.shop.setCurrentLevel(c+1); } break;
             case 'retry': this.game.startLevel(this.game.shop.getCurrentLevel()); break;
