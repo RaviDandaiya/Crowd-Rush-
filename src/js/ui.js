@@ -552,13 +552,13 @@ class UI {
         ctx.save();
         const r = Math.min(h / 2, 16);
 
-        // Bottom shadow layer
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
-        ctx.beginPath(); ctx.roundRect(x - w/2 + 2, y - h/2 + 5, w, h, r); ctx.fill();
+        // Soft drop shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.beginPath(); ctx.roundRect(x - w/2 + 2, y - h/2 + 4, w, h, r); ctx.fill();
 
-        // 3D side extrusion
+        // 3D base depth
         ctx.fillStyle = c1;
-        ctx.beginPath(); ctx.roundRect(x - w/2, y - h/2 + 4, w, h, r); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(x - w/2, y - h/2 + 3, w, h, r); ctx.fill();
 
         // Top face gradient
         const g = ctx.createLinearGradient(x, y - h/2, x, y + h/2);
@@ -567,20 +567,23 @@ class UI {
         ctx.fillStyle = g;
         ctx.beginPath(); ctx.roundRect(x - w/2, y - h/2, w, h, r); ctx.fill();
 
-        // Shine
-        ctx.fillStyle = 'rgba(255,255,255,0.22)';
-        ctx.beginPath(); ctx.roundRect(x - w/2 + 3, y - h/2 + 3, w - 6, h * 0.4, r); ctx.fill();
+        // Clean specular highlight
+        const shineG = ctx.createLinearGradient(x, y - h/2, x, y - h/2 + h * 0.4);
+        shineG.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+        shineG.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
+        ctx.fillStyle = shineG;
+        ctx.beginPath(); ctx.roundRect(x - w/2 + 2, y - h/2 + 2, w - 4, h * 0.38, r); ctx.fill();
 
-        // Stroke
-        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        // Crisp border
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.roundRect(x - w/2, y - h/2, w, h, r); ctx.stroke();
 
-        // Text
-        ctx.fillStyle = '#FFF';
-        ctx.font = `bold ${Math.min(15, h * 0.42)}px "Outfit", sans-serif`;
+        // Typography
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `900 ${Math.min(16, h * 0.44)}px "Outfit", sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 3;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'; ctx.shadowBlur = 3;
         ctx.fillText(text, x, y - 1);
 
         ctx.restore();
@@ -638,25 +641,42 @@ class UI {
 
     _drawTitleCard(ctx, w, h) {
         const cy = h * 0.17;
-        const ts = 1 + Math.sin(this.t * 1.8) * 0.015;
+        const ts = 1 + Math.sin(this.t * 2) * 0.015;
 
         ctx.save();
         ctx.translate(w / 2, cy);
         ctx.scale(ts, ts);
 
-        // Glowing title
-        ctx.fillStyle = '#FFF';
-        ctx.font = 'bold 52px "Outfit", sans-serif';
+        // Soft ambient glow
+        const aura = ctx.createRadialGradient(0, 0, 10, 0, 0, 90);
+        aura.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
+        aura.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = aura;
+        ctx.beginPath(); ctx.arc(0, 0, 90, 0, Math.PI * 2); ctx.fill();
+
+        // Cool 3D title text
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.shadowColor = '#00B4FF'; ctx.shadowBlur = 30;
+        ctx.font = '900 52px "Outfit", sans-serif';
+
+        // CROWD (Electric Cyan)
+        ctx.fillStyle = '#00E5FF';
+        ctx.shadowColor = 'rgba(0, 229, 255, 0.6)'; ctx.shadowBlur = 18;
         ctx.fillText('CROWD', 0, -28);
-        ctx.shadowColor = '#FF69B4'; ctx.shadowBlur = 30;
+
+        // RUSH (Vivid Pink)
+        ctx.fillStyle = '#FF2E93';
+        ctx.shadowColor = 'rgba(255, 46, 147, 0.6)'; ctx.shadowBlur = 18;
         ctx.fillText('RUSH', 0, 28);
 
-        // Subtitle
+        // Subtitle badge
         ctx.shadowBlur = 0;
-        ctx.fillStyle = 'rgba(255,255,255,0.45)';
-        ctx.font = '13px "Outfit", sans-serif';
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(-110, 52, 220, 22, 11); ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = '#94A3B8';
+        ctx.font = '800 11px "Outfit", sans-serif';
         ctx.fillText('Grow your crowd. Crush the fortress!', 0, 62);
 
         ctx.restore();
@@ -664,13 +684,13 @@ class UI {
 
     _drawLevelCard(ctx, w, h) {
         const cy = h * 0.37;
-        const cardW = w - 32, cardH = 70;
+        const cardW = w - 32, cardH = 72;
 
         ctx.save();
 
-        // Card background
-        ctx.fillStyle = 'rgba(255,255,255,0.06)';
-        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        // Clean glass card
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.roundRect(16, cy - cardH/2, cardW, cardH, 16); ctx.fill(); ctx.stroke();
 
@@ -680,20 +700,21 @@ class UI {
         const lvName = li < LEVELS.length ? LEVELS[li].name : '—';
         const world = li < LEVELS.length ? LEVELS[li].world : 1;
 
-        ctx.fillStyle = 'rgba(0,180,255,0.8)';
-        ctx.font = 'bold 11px "Outfit", sans-serif';
+        ctx.fillStyle = '#38BDF8';
+        ctx.font = '800 11px "Outfit", sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(`WORLD ${world}  ·  LEVEL ${lvNum}`, w / 2, cy - 14);
+        ctx.fillText(`WORLD ${world}  ·  LEVEL ${lvNum}`, w / 2, cy - 16);
 
-        ctx.fillStyle = '#FFF';
-        ctx.font = 'bold 20px "Outfit", sans-serif';
-        ctx.fillText(lvName, w / 2, cy + 8);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '900 20px "Outfit", sans-serif';
+        ctx.fillText(lvName, w / 2, cy + 6);
 
         // Stars
         const best = this.game.shop.getBestForLevel ? this.game.shop.getBestForLevel(lvNum) : null;
         const stars = best ? (best.crowd > 50 ? 3 : best.crowd > 20 ? 2 : 1) : 0;
         ctx.font = '14px sans-serif';
-        ctx.fillText('⭐'.repeat(stars) + '☆'.repeat(3 - stars), w / 2, cy + 32);
+        ctx.shadowColor = 'rgba(251, 191, 36, 0.5)'; ctx.shadowBlur = 8;
+        ctx.fillText('⭐'.repeat(stars) + '☆'.repeat(3 - stars), w / 2, cy + 28);
 
         ctx.restore();
 
@@ -1000,7 +1021,7 @@ class UI {
             "Uninstalling the app clears local saved data.",
             "",
             "4. CONTACT & SUPPORT",
-            "For inquiries, contact: support@crowdrush.com"
+            "For inquiries, contact: skyyforge07@gmail.com"
         ];
 
         let lineY = boxY + 14;
@@ -1051,7 +1072,10 @@ class UI {
             "virtual items with no real monetary value.",
             "",
             "4. LIMITATION OF LIABILITY",
-            "Crowd Rush is provided 'as is' without warranty."
+            "Crowd Rush is provided 'as is' without warranty.",
+            "",
+            "5. CONTACT",
+            "For inquiries, contact: skyyforge07@gmail.com"
         ];
 
         let lineY = boxY + 14;

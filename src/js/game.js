@@ -73,6 +73,9 @@ class Game {
 
         this.setupInput();
         window.addEventListener('resize', () => this.resize());
+        if (typeof Android !== 'undefined' && Android.showBanner) {
+            try { Android.showBanner(); } catch(e) {}
+        }
     }
 
     _initEnvironment() {
@@ -347,6 +350,9 @@ class Game {
     startLevel(num) {
         const idx = num - 1;
         if (idx < 0 || idx >= LEVELS.length) return;
+        if (typeof Android !== 'undefined' && Android.hideBanner) {
+            try { Android.hideBanner(); } catch(e) {}
+        }
         this.currentLevel = LEVELS[idx];
         this.state = 'PLAYING';
         this.ui.showingShop = false;
@@ -379,10 +385,20 @@ class Game {
         if (this.state !== 'GAME_OVER') return;
         const rc = Math.max(5, Math.floor((this.crowd.displayCount || 10) * 0.5));
         this.crowd.init(rc, this.shop.getCurrentSkin());
+        if (typeof Android !== 'undefined' && Android.hideBanner) {
+            try { Android.hideBanner(); } catch(e) {}
+        }
         this.state = 'PLAYING';
     }
 
-    goToMenu() { this.state = 'MENU'; this.currentLevel = null; this.ui.showingShop = false; }
+    goToMenu() {
+        this.state = 'MENU';
+        this.currentLevel = null;
+        this.ui.showingShop = false;
+        if (typeof Android !== 'undefined' && Android.showBanner) {
+            try { Android.showBanner(); } catch(e) {}
+        }
+    }
 
     showResults() {
         const coins = this.fortress.coinsEarned;
@@ -401,6 +417,9 @@ class Game {
         };
         this.ui.rewarded2x = false;
         this.state = 'RESULTS';
+        if (typeof Android !== 'undefined' && Android.showBanner) {
+            try { Android.showBanner(); } catch(e) {}
+        }
     }
 
     start() {
@@ -461,7 +480,12 @@ class Game {
                 this.state = 'FORTRESS_ATTACK';
                 this.screenFx.pulseVignette('#FF8800', 999);
             }
-            if (this.crowd.count <= 0) this.state = 'GAME_OVER';
+            if (this.crowd.count <= 0) {
+                this.state = 'GAME_OVER';
+                if (typeof Android !== 'undefined' && Android.showBanner) {
+                    try { Android.showBanner(); } catch(e) {}
+                }
+            }
             
             // Move camera forward based on crowd progress
             // Crowd starts at z=0 and moves forward (negative Z in ThreeJS)
@@ -473,6 +497,9 @@ class Game {
             if (this.crowd.count <= 0) {
                 this.screenFx.pulseVignette('transparent', 0);
                 this.state = 'GAME_OVER';
+                if (typeof Android !== 'undefined' && Android.showBanner) {
+                    try { Android.showBanner(); } catch(e) {}
+                }
             }
         } else if (this.state === 'FORTRESS_ATTACK') {
             this.crowd.update(dt, false);
