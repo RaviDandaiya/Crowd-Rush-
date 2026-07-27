@@ -163,7 +163,7 @@ class UI {
             ? Utils.clamp(this.game.crowd.worldY / this.game.currentLevel.laneLength, 0, 1)
             : 0;
 
-        const bx = 16, by = 16, bw = w * 0.45, bh = 18;
+        const bx = 56, by = 16, bw = w * 0.45, bh = 18;
         const radius = bh / 2;
 
         ctx.save();
@@ -285,7 +285,7 @@ class UI {
         ctx.fillText('🏠', cx, cy);
 
         ctx.restore();
-        this._regBtn(cx - r, cy - r, r * 2, r * 2, 'exitToMenu');
+        this._regBtn(cx - 20, cy - 17, 40, 40, 'exitToMenu');
     }
 
     _drawCoinBadge(ctx, w) {
@@ -415,6 +415,100 @@ class UI {
         }
     }
 
+    _drawCircularCombatGauge(ctx, w, ratio, label, title, emoji, colorHex, glowColor) {
+        ctx.save();
+        
+        const cx = w / 2;
+        const cy = 100;
+        const r = 26;
+
+        // 1. Concentric rotating outer dotted ring (Scanner style)
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([3, 11]);
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 5, this.t * 0.4, this.t * 0.4 + Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // 2. Outer thin guide ring
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 3. Label Pill Background (Sleek dark-glass pill)
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(cx - 75, cy + 34, 150, 32, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        // Small indicator dots matching theme
+        ctx.fillStyle = colorHex;
+        ctx.beginPath();
+        ctx.arc(cx - 62, cy + 50, 3, 0, Math.PI * 2);
+        ctx.arc(cx + 62, cy + 50, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 4. Circular Outer Track (dark backing)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.lineWidth = 5;
+        ctx.setLineDash([5, 2]);
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 5. Circular Progress Ring (glowing neon stroke)
+        if (ratio > 0) {
+            ctx.save();
+            ctx.strokeStyle = colorHex;
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = 10;
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'butt';
+            ctx.setLineDash([5, 2]);
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + ratio * Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 6. Inner guide ring
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r - 4, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 7. Dial Center Backing
+        ctx.fillStyle = 'rgba(10, 15, 30, 0.9)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, r - 4.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 8. Dial Emoji
+        ctx.font = '15px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emoji, cx, cy + 1);
+
+        // 9. Text details
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 11px "Outfit", sans-serif';
+        ctx.fillText(title, cx, cy + 46);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.font = 'bold 9px "Outfit", sans-serif';
+        ctx.fillText(label, cx, cy + 58);
+
+        ctx.restore();
+    }
+
     _drawAttackBanner(ctx, w) {
         if (this._attackBannerAlpha < 0.02) return;
 
@@ -422,64 +516,39 @@ class UI {
         const idx = this.game.fortress.phaseIndex;
         const phase = this.game.fortress.currentPhase;
 
+        if (!phase) return;
+
         ctx.save();
         ctx.globalAlpha = this._attackBannerAlpha;
 
-        // Phase label pill — below progress bar
-        if (phase) {
-            const pill_w = 180, pill_h = 16;
-            const pill_x = (w - pill_w) / 2, pill_y = 120;
-            
-            const hpText = `${Math.ceil(this.game.fortress.hp)}/${this.game.fortress.maxHP}`;
-            const hpRatio = Utils.clamp(this.game.fortress.hp / this.game.fortress.maxHP, 0, 1);
-            
-            // "City Wall [1/2]" top pill
-            const title = `🏰 City Wall [${idx + 1}/${phases ? phases.length : 1}]`;
-            ctx.fillStyle = 'rgba(10, 15, 30, 0.8)';
-            ctx.beginPath(); ctx.roundRect(pill_x + 20, pill_y - 24, pill_w - 40, 20, 10); ctx.fill();
-            
-            ctx.fillStyle = '#FFF';
-            ctx.font = 'bold 11px "Outfit", sans-serif';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(title, pill_x + pill_w / 2, pill_y - 14);
+        const hpText = `${Math.ceil(this.game.fortress.hp)} / ${this.game.fortress.maxHP}`;
+        const hpRatio = Utils.clamp(this.game.fortress.hp / this.game.fortress.maxHP, 0, 1);
+        const title = `${phase.label} [${idx + 1}/${phases ? phases.length : 1}]`;
 
-            // Health bar background (dark grey)
-            ctx.fillStyle = 'rgba(20, 25, 40, 0.9)';
-            ctx.beginPath(); ctx.roundRect(pill_x, pill_y, pill_w, pill_h, 4); ctx.fill();
-
-            // Health bar fill (red)
-            if (hpRatio > 0) {
-                ctx.fillStyle = '#FF3344';
-                ctx.beginPath(); ctx.roundRect(pill_x, pill_y, pill_w * hpRatio, pill_h, 4); ctx.fill();
-            }
-            
-            // Red hit flash on bar
-            if (this.game.fortress.shake > 0) {
-                ctx.fillStyle = `rgba(255, 255, 255, ${this.game.fortress.shake * 0.2})`;
-                ctx.beginPath(); ctx.roundRect(pill_x, pill_y, pill_w, pill_h, 4); ctx.fill();
-            }
-
-            // Health text
-            ctx.fillStyle = '#FFF';
-            ctx.font = 'bold 10px "Outfit", sans-serif';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(hpText, pill_x + pill_w / 2, pill_y + pill_h / 2 + 1);
-        }
+        this._drawCircularCombatGauge(ctx, w, hpRatio, hpText, title, '🏰', '#FF3366', '#FF0055');
 
         ctx.restore();
     }
 
     _drawClashBanner(ctx, w) {
-        const pulse = Math.sin(this.t * 8) * 0.1 + 0.9;
-        ctx.save();
-        ctx.translate(w / 2, 68);
-        ctx.scale(pulse, pulse);
-        ctx.fillStyle = '#FF4444';
-        ctx.font = 'bold 22px "Outfit", sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.shadowColor = '#FF0000'; ctx.shadowBlur = 16;
-        ctx.fillText('⚔️  CLASH!  ⚔️', 0, 0);
-        ctx.restore();
+        const clashIndex = this.game.enemies ? this.game.enemies.currentClash : null;
+        const activeMob = (clashIndex !== null && clashIndex >= 0) ? this.game.enemies.mobs[clashIndex] : null;
+
+        if (!activeMob) return;
+
+        const types = (typeof ENEMY_TYPES !== 'undefined') ? ENEMY_TYPES : {
+            normal: { color: 0xFF4444, emoji: '⚔️', name: 'Warrior' }
+        };
+        const typeInfo = types[activeMob.type] || types.normal;
+        const name = typeInfo.name;
+        const emoji = typeInfo.emoji;
+        const color = '#' + typeInfo.color.toString(16).padStart(6, '0');
+
+        const hpRatio = Utils.clamp(activeMob.count / activeMob.maxCount, 0, 1);
+        const hpText = `${activeMob.count} / ${activeMob.maxCount}`;
+        const title = `${name.toUpperCase()} CLASH`;
+
+        this._drawCircularCombatGauge(ctx, w, hpRatio, hpText, title, emoji, color, color);
     }
 
     _drawComboIndicator(ctx, combo) {
@@ -647,37 +716,107 @@ class UI {
         ctx.translate(w / 2, cy);
         ctx.scale(ts, ts);
 
-        // Soft ambient glow
-        const aura = ctx.createRadialGradient(0, 0, 10, 0, 0, 90);
-        aura.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
+        // 1. Draw glowing background particle rays
+        ctx.save();
+        for (let i = 0; i < 16; i++) {
+            const angle = (i * Math.PI / 8) + this.t * 0.2;
+            const length = 75 + Math.sin(this.t * 4 + i) * 15;
+            const opacity = 0.15 + Math.sin(this.t * 3 + i) * 0.08;
+            ctx.strokeStyle = i % 2 === 0 ? '#00E5FF' : '#FF2E93';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = opacity;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(angle) * 30, Math.sin(angle) * 30);
+            ctx.lineTo(Math.cos(angle) * length, Math.sin(angle) * length);
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // 2. Soft ambient glow
+        const aura = ctx.createRadialGradient(0, 0, 10, 0, 0, 110);
+        aura.addColorStop(0, 'rgba(0, 229, 255, 0.25)');
+        aura.addColorStop(0.5, 'rgba(255, 46, 147, 0.1)');
         aura.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = aura;
-        ctx.beginPath(); ctx.arc(0, 0, 90, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, 110, 0, Math.PI * 2); ctx.fill();
 
-        // Cool 3D title text
+        // 3. Futuristic decorative wings (Chevrons)
+        ctx.save();
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.shadowBlur = 10;
+        
+        // Left pulsing wing
+        const leftAlpha = 0.3 + Math.sin(this.t * 5) * 0.2;
+        ctx.strokeStyle = '#00E5FF';
+        ctx.shadowColor = '#00E5FF';
+        ctx.globalAlpha = leftAlpha;
+        ctx.beginPath();
+        ctx.moveTo(-135, -20);
+        ctx.lineTo(-155, 0);
+        ctx.lineTo(-135, 20);
+        ctx.moveTo(-125, -15);
+        ctx.lineTo(-141, 0);
+        ctx.lineTo(-125, 15);
+        ctx.stroke();
+
+        // Right pulsing wing
+        const rightAlpha = 0.3 + Math.cos(this.t * 5) * 0.2;
+        ctx.strokeStyle = '#FF2E93';
+        ctx.shadowColor = '#FF2E93';
+        ctx.globalAlpha = rightAlpha;
+        ctx.beginPath();
+        ctx.moveTo(135, -20);
+        ctx.lineTo(155, 0);
+        ctx.lineTo(135, 20);
+        ctx.moveTo(125, -15);
+        ctx.lineTo(141, 0);
+        ctx.lineTo(125, 15);
+        ctx.stroke();
+        ctx.restore();
+
+        // 4. Cool 3D title text
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.font = '900 52px "Outfit", sans-serif';
+        ctx.font = '900 54px "Outfit", sans-serif';
 
-        // CROWD (Electric Cyan)
+        // CROWD 3D shadow layers
+        ctx.fillStyle = '#062B44';
+        ctx.fillText('CROWD', 0, -25);
+        ctx.fillStyle = '#095C7A';
+        ctx.fillText('CROWD', -2, -26);
+        ctx.fillStyle = '#0097B2';
+        ctx.fillText('CROWD', -4, -27);
+
+        // CROWD (Electric Cyan Front)
         ctx.fillStyle = '#00E5FF';
-        ctx.shadowColor = 'rgba(0, 229, 255, 0.6)'; ctx.shadowBlur = 18;
-        ctx.fillText('CROWD', 0, -28);
+        ctx.shadowColor = 'rgba(0, 229, 255, 0.8)'; ctx.shadowBlur = 22;
+        ctx.fillText('CROWD', -5, -28);
 
-        // RUSH (Vivid Pink)
-        ctx.fillStyle = '#FF2E93';
-        ctx.shadowColor = 'rgba(255, 46, 147, 0.6)'; ctx.shadowBlur = 18;
-        ctx.fillText('RUSH', 0, 28);
-
-        // Subtitle badge
+        // RUSH 3D shadow layers
         ctx.shadowBlur = 0;
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.roundRect(-110, 52, 220, 22, 11); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#440A28';
+        ctx.fillText('RUSH', 0, 31);
+        ctx.fillStyle = '#7A0E3C';
+        ctx.fillText('RUSH', -2, 30);
+        ctx.fillStyle = '#B21757';
+        ctx.fillText('RUSH', -4, 29);
 
-        ctx.fillStyle = '#94A3B8';
-        ctx.font = '800 11px "Outfit", sans-serif';
-        ctx.fillText('Grow your crowd. Crush the fortress!', 0, 62);
+        // RUSH (Vivid Pink Front)
+        ctx.fillStyle = '#FF2E93';
+        ctx.shadowColor = 'rgba(255, 46, 147, 0.8)'; ctx.shadowBlur = 22;
+        ctx.fillText('RUSH', -5, 28);
+
+        // 5. Subtitle badge
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.25)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(-120, 56, 240, 24, 12); ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = '#E2E8F0';
+        ctx.font = 'bold 11px "Outfit", sans-serif';
+        ctx.fillText('Grow your crowd. Crush the fortress!', 0, 67);
 
         ctx.restore();
     }
@@ -1546,7 +1685,7 @@ class UI {
         }
         // Exit button during gameplay
         if (['PLAYING','CLASH','FORTRESS_ATTACK'].includes(this.game.state)) {
-            btns.push({ x: 13, y: 4, w: 26, h: 26, id: 'exitToMenu' });
+            btns.push({ x: 6, y: 0, w: 40, h: 40, id: 'exitToMenu' });
         }
         return btns;
     }

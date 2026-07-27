@@ -502,16 +502,16 @@ class EnemyManager {
                 }
             }
 
-            if (mob.count <= 0) {
-                this._defeatMob(mob, crowdWorldY);
-                break;
-            }
             if (this.game.crowd.count <= 0) {
                 this.game.screenFx.pulseVignette('transparent', 0);
                 this.game.state = 'GAME_OVER';
                 this.currentClash = null;
                 this.clashAcc = 0;
                 if (this.game.sound) this.game.sound.gameOver();
+                break;
+            }
+            if (mob.count <= 0) {
+                this._defeatMob(mob, crowdWorldY);
                 break;
             }
         }

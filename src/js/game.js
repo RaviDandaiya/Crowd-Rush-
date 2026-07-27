@@ -231,7 +231,7 @@ class Game {
         const top = (screenH - h) / 2;
 
         // Size and position 3D WebGL Canvas
-        this.renderer.setSize(w * this.dpr, h * this.dpr, false);
+        this.renderer.setSize(w, h, false);
         this.canvas.style.width = `${w}px`;
         this.canvas.style.height = `${h}px`;
         this.canvas.style.left = `${left}px`;
@@ -506,6 +506,12 @@ class Game {
             this.fortress.update(dt, this.crowd.worldY);
             if (this.fortress.state === 'destroyed') {
                 this.screenFx.pulseVignette('transparent', 0);
+            }
+            if (this.crowd.count <= 0) {
+                this.state = 'GAME_OVER';
+                if (typeof Android !== 'undefined' && Android.showBanner) {
+                    try { Android.showBanner(); } catch(e) {}
+                }
             }
         }
         

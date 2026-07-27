@@ -142,6 +142,17 @@ class Fortress {
                     }
                 }
 
+                if (this.game.crowd.count <= 0) {
+                    this.coinsEarned = this.damageDealt;
+                    this.state = 'failed';
+                    setTimeout(() => {
+                        this.game.state = 'GAME_OVER';
+                        if (typeof Android !== 'undefined' && Android.showBanner) {
+                            try { Android.showBanner(); } catch(e) {}
+                        }
+                    }, 1000);
+                    break;
+                }
                 if (this.hp <= 0) {
                     this.vec.setFromMatrixPosition(this.group.matrixWorld);
                     this.vec.project(this.game.camera);
@@ -171,12 +182,6 @@ class Fortress {
                         
                         setTimeout(() => this.game.showResults(), 1800);
                     }
-                    break;
-                }
-                if (this.game.crowd.count <= 0) {
-                    this.coinsEarned = this.damageDealt;
-                    this.state = 'failed';
-                    setTimeout(() => { this.game.showResults(); }, 1000);
                     break;
                 }
             }
