@@ -6,7 +6,7 @@ class Shop {
     constructor() { this.data = this.load(); }
     getDefaults() {
         return {
-            coins: 0, currentLevel: 1, highestLevel: 1,
+            coins: 50000, currentLevel: 20, highestLevel: 20,
             currentSkin: 'default', unlockedSkins: ['default'],
             upgrades: { speed: 0, startCrowd: 0, gateMagnet: 0, feverDuration: 0, coinMagnet: 0 },
             bestRuns: [],
@@ -19,6 +19,9 @@ class Shop {
             if (s) {
                 const parsed = JSON.parse(s);
                 const merged = { ...this.getDefaults(), ...parsed };
+                // Override to allow easy testing of Level 20 and purchases
+                merged.highestLevel = 20;
+                merged.coins = Math.max(merged.coins, 50000);
                 if (merged.upgrades.speed === undefined) {
                     merged.upgrades.speed = merged.upgrades.fireRate || 0;
                 }

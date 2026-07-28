@@ -548,16 +548,16 @@ const LEVELS = [
     {
         id: 18, name: 'Obsidian Spire', world: 6, theme: 'volcano', startCrowd: 6, laneLength: 9600,
         gates: [
-            { y: 500,  left: { type: 'multiply', value: 6, label: '×6' },     right: { type: 'divide', value: 4, label: '÷4' } },
-            { y: 1350, left: { type: 'subtract', value: 80, label: '-80' },   right: { type: 'multiply', value: 7, label: '×7' } },
-            { y: 2200, left: { type: 'shield' },                               right: { type: 'divide', value: 3, label: '÷3' } },
-            { y: 3050, left: { type: 'multiply', value: 7, label: '×7' },     right: { type: 'subtract', value: 140, label: '-140' } },
-            { y: 3900, left: { type: 'golden' },                               right: { type: 'divide', value: 4, label: '÷4' } },
-            { y: 4750, left: { type: 'multiply', value: 8, label: '×8' },     right: { type: 'subtract', value: 160, label: '-160' } },
+            { y: 500,  left: { type: 'multiply', value: 6, label: '×6' },     right: { type: 'divide', value: 2, label: '÷2' } },
+            { y: 1350, left: { type: 'subtract', value: 4, label: '-4' },     right: { type: 'multiply', value: 7, label: '×7' } },
+            { y: 2200, left: { type: 'shield' },                               right: { type: 'divide', value: 2, label: '÷2' } },
+            { y: 3050, left: { type: 'multiply', value: 7, label: '×7' },     right: { type: 'subtract', value: 10, label: '-10' } },
+            { y: 3900, left: { type: 'golden' },                               right: { type: 'divide', value: 2, label: '÷2' } },
+            { y: 4750, left: { type: 'multiply', value: 8, label: '×8' },     right: { type: 'subtract', value: 15, label: '-15' } },
             { y: 5600, left: { type: 'explode' },                              right: { type: 'multiply', value: 9, label: '×9' } },
-            { y: 6450, left: { type: 'multiply', value: 9, label: '×9' },     right: { type: 'divide', value: 3, label: '÷3' } },
-            { y: 7300, left: { type: 'golden' },                               right: { type: 'subtract', value: 200, label: '-200' } },
-            { y: 8400, left: { type: 'multiply', value: 10, label: '×10' },   right: { type: 'divide', value: 4, label: '÷4' } },
+            { y: 6450, left: { type: 'multiply', value: 9, label: '×9' },     right: { type: 'divide', value: 2, label: '÷2' } },
+            { y: 7300, left: { type: 'golden' },                               right: { type: 'subtract', value: 20, label: '-20' } },
+            { y: 8400, left: { type: 'multiply', value: 10, label: '×10' },   right: { type: 'divide', value: 2, label: '÷2' } },
         ],
         obstacles: [
             { y: 900, type: 'saw', range: 0.9, speed: 7.8 },
@@ -570,10 +570,10 @@ const LEVELS = [
             { y: 6850, type: 'pit', laneX: 0.0, width: 120, isLava: true }
         ],
         enemies: [
-            { y: 2700, count: 400, type: 'split_boss' },
-            { y: 4800, count: 600 },
-            { y: 6600, count: 550, type: 'split_boss' },
-            { y: 8600, count: 500 }
+            { y: 2700, count: 150, type: 'split_boss' },
+            { y: 4800, count: 200 },
+            { y: 6600, count: 220, type: 'split_boss' },
+            { y: 8600, count: 240 }
         ],
         fortress: { hp: 4800, phases: [
             { hp: 1800, label: 'Obsidian Barrier', theme: 'volcano' },
@@ -584,15 +584,15 @@ const LEVELS = [
     {
         id: 19, name: 'Chaos Citadel', world: 6, theme: 'volcano', startCrowd: 6, laneLength: 10000,
         gates: [
-            { y: 500,  left: { type: 'multiply', value: 7, label: '×7' },     right: { type: 'subtract', value: 90, label: '-90' } },
-            { y: 1400, left: { type: 'golden' },                               right: { type: 'divide', value: 4, label: '÷4' } },
-            { y: 2300, left: { type: 'multiply', value: 8, label: '×8' },     right: { type: 'subtract', value: 150, label: '-150' } },
-            { y: 3200, left: { type: 'shield' },                               right: { type: 'divide', value: 4, label: '÷4' } },
-            { y: 4100, left: { type: 'multiply', value: 7, label: '×7' },     right: { type: 'subtract', value: 180, label: '-180' } },
+            { y: 500,  left: { type: 'multiply', value: 7, label: '×7' },     right: { type: 'subtract', value: 3, label: '-3' } },
+            { y: 1400, left: { type: 'golden' },                               right: { type: 'divide', value: 2, label: '÷2' } },
+            { y: 2300, left: { type: 'multiply', value: 8, label: '×8' },     right: { type: 'subtract', value: 12, label: '-12' } },
+            { y: 3200, left: { type: 'shield' },                               right: { type: 'divide', value: 2, label: '÷2' } },
+            { y: 4100, left: { type: 'multiply', value: 7, label: '×7' },     right: { type: 'subtract', value: 18, label: '-18' } },
             { y: 5000, left: { type: 'explode' },                              right: { type: 'multiply', value: 9, label: '×9' } },
-            { y: 5900, left: { type: 'multiply', value: 9, label: '×9' },     right: { type: 'divide', value: 4, label: '÷4' } },
-            { y: 6800, left: { type: 'golden' },                               right: { type: 'subtract', value: 220, label: '-220' } },
-            { y: 7700, left: { type: 'multiply', value: 10, label: '×10' },   right: { type: 'divide', value: 3, label: '÷3' } },
+            { y: 5900, left: { type: 'multiply', value: 9, label: '×9' },     right: { type: 'divide', value: 2, label: '÷2' } },
+            { y: 6800, left: { type: 'golden' },                               right: { type: 'subtract', value: 25, label: '-25' } },
+            { y: 7700, left: { type: 'multiply', value: 10, label: '×10' },   right: { type: 'divide', value: 2, label: '÷2' } },
             { y: 8800, left: { type: 'multiply', value: 12, label: '×12' },   right: { type: 'shield' } },
         ],
         obstacles: [
@@ -606,10 +606,10 @@ const LEVELS = [
             { y: 7250, type: 'hammer', laneX: -0.5, speed: 7.8 }
         ],
         enemies: [
-            { y: 2800, count: 450, type: 'split_boss' },
-            { y: 5000, count: 650 },
-            { y: 7000, count: 600, type: 'split_boss' },
-            { y: 9000, count: 550 }
+            { y: 2800, count: 200, type: 'split_boss' },
+            { y: 5000, count: 250 },
+            { y: 7000, count: 260, type: 'split_boss' },
+            { y: 9000, count: 280 }
         ],
         fortress: { hp: 5000, phases: [
             { hp: 2000, label: 'Citadel Gate', theme: 'volcano' },
@@ -620,17 +620,17 @@ const LEVELS = [
     {
         id: 20, name: 'The Ultimate Clash', world: 6, theme: 'volcano', startCrowd: 5, laneLength: 10500,
         gates: [
-            { y: 500,  left: { type: 'multiply', value: 8, label: '×8' },     right: { type: 'subtract', value: 100, label: '-100' } },
-            { y: 1400, left: { type: 'golden' },                               right: { type: 'divide', value: 4, label: '÷4' } },
-            { y: 2300, left: { type: 'multiply', value: 9, label: '×9' },     right: { type: 'subtract', value: 180, label: '-180' } },
-            { y: 3200, left: { type: 'shield' },                               right: { type: 'divide', value: 4, label: '÷4' } },
-            { y: 4100, left: { type: 'multiply', value: 8, label: '×8' },     right: { type: 'subtract', value: 200, label: '-200' } },
+            { y: 500,  left: { type: 'multiply', value: 8, label: '×8' },     right: { type: 'subtract', value: 3, label: '-3' } },
+            { y: 1400, left: { type: 'golden' },                               right: { type: 'divide', value: 2, label: '÷2' } },
+            { y: 2300, left: { type: 'multiply', value: 9, label: '×9' },     right: { type: 'subtract', value: 15, label: '-15' } },
+            { y: 3200, left: { type: 'shield' },                               right: { type: 'divide', value: 2, label: '÷2' } },
+            { y: 4100, left: { type: 'multiply', value: 8, label: '×8' },     right: { type: 'subtract', value: 20, label: '-20' } },
             { y: 5000, left: { type: 'explode' },                              right: { type: 'multiply', value: 10, label: '×10' } },
-            { y: 5900, left: { type: 'multiply', value: 10, label: '×10' },   right: { type: 'divide', value: 4, label: '÷4' } },
-            { y: 6800, left: { type: 'golden' },                               right: { type: 'subtract', value: 250, label: '-250' } },
-            { y: 7700, left: { type: 'multiply', value: 12, label: '×12' },   right: { type: 'divide', value: 3, label: '÷3' } },
+            { y: 5900, left: { type: 'multiply', value: 10, label: '×10' },   right: { type: 'divide', value: 2, label: '÷2' } },
+            { y: 6800, left: { type: 'golden' },                               right: { type: 'subtract', value: 30, label: '-30' } },
+            { y: 7700, left: { type: 'multiply', value: 12, label: '×12' },   right: { type: 'divide', value: 2, label: '÷2' } },
             { y: 8700, left: { type: 'multiply', value: 15, label: '×15' },   right: { type: 'shield' } },
-            { y: 9600, left: { type: 'golden' },                               right: { type: 'subtract', value: 300, label: '-300' } },
+            { y: 9600, left: { type: 'golden' },                               right: { type: 'subtract', value: 40, label: '-40' } },
         ],
         obstacles: [
             { y: 950, type: 'saw', range: 0.9, speed: 8.5 },
@@ -645,11 +645,11 @@ const LEVELS = [
             { y: 9050, type: 'saw', range: 0.9, speed: 9.2 }
         ],
         enemies: [
-            { y: 2800, count: 500, type: 'split_boss' },
-            { y: 4800, count: 750 },
-            { y: 6800, count: 700, type: 'split_boss' },
-            { y: 8500, count: 650, type: 'split_boss' },
-            { y: 9600, count: 800 }
+            { y: 2800, count: 220, type: 'split_boss' },
+            { y: 4800, count: 280 },
+            { y: 6800, count: 300, type: 'split_boss' },
+            { y: 8500, count: 320, type: 'split_boss' },
+            { y: 9600, count: 350 }
         ],
         fortress: { hp: 5000, phases: [
             { hp: 1500, label: 'Iron Barrier', theme: 'volcano' },

@@ -67,15 +67,18 @@ const THEMES = {
 };
 
 const CROWD_SKINS = {
-    default: { name: 'Blue', body: '#4A9EFF', head: '#6BB5FF', outline: '#2D7AD4', cost: 0, type: 'default' },
-    steve: { name: 'Steve (3D)', body: '#00B4D8', head: '#E0A96D', outline: '#0077B6', cost: 1500, type: 'steve' },
-    creeper: { name: 'Creeper (3D)', body: '#38B000', head: '#70E000', outline: '#007200', cost: 2500, type: 'creeper' },
-    devil: { name: 'Devil (3D)', body: '#D90429', head: '#EF233C', outline: '#8D0801', cost: 5000, type: 'devil' },
-    robot: { name: 'Robot (3D)', body: '#73A942', head: '#ADF7B6', outline: '#1A5F7A', cost: 10000, type: 'robot' },
-    ninja: { name: 'Cyber Ninja', body: '#8A2BE2', head: '#00FFFF', outline: '#4B0082', cost: 15000, type: 'ninja' },
-    superhero: { name: 'Superhero', body: '#E63946', head: '#FFD166', outline: '#1D3557', cost: 20000, type: 'superhero' },
-    gold_king: { name: 'Golden King', body: '#FFD700', head: '#FFF8DC', outline: '#DAA520', cost: 35000, type: 'gold_king' },
-    rainbow: { name: 'Rainbow', body: 'rainbow', head: 'rainbow', outline: '#888', cost: 50000, type: 'rainbow' },
+    default:      { name: 'Blue',          body: '#4A9EFF',  head: '#6BB5FF',  outline: '#2D7AD4', cost: 0,       type: 'default'      },
+    steve:        { name: 'Steve (3D)',     body: '#00B4D8',  head: '#E0A96D',  outline: '#0077B6', cost: 1500,    type: 'steve'        },
+    creeper:      { name: 'Creeper (3D)',   body: '#38B000',  head: '#70E000',  outline: '#007200', cost: 2500,    type: 'creeper'      },
+    devil:        { name: 'Devil (3D)',     body: '#D90429',  head: '#EF233C',  outline: '#8D0801', cost: 5000,    type: 'devil'        },
+    robot:        { name: 'Robot (3D)',     body: '#73A942',  head: '#ADF7B6',  outline: '#1A5F7A', cost: 10000,   type: 'robot'        },
+    ninja:        { name: 'Cyber Ninja',    body: '#8A2BE2',  head: '#00FFFF',  outline: '#4B0082', cost: 15000,   type: 'ninja'        },
+    superhero:    { name: 'Superhero',      body: '#E63946',  head: '#FFD166',  outline: '#1D3557', cost: 20000,   type: 'superhero'    },
+    gold_king:    { name: 'Golden King',    body: '#FFD700',  head: '#FFF8DC',  outline: '#DAA520', cost: 35000,   type: 'gold_king'    },
+    rainbow:      { name: 'Rainbow',        body: 'rainbow',  head: 'rainbow',  outline: '#888',    cost: 50000,   type: 'rainbow'      },
+    death_knight: { name: '💀 Death Knight', body: '#1a1a2e', head: '#0d0d1a', outline: '#8B0000', cost: 75000,   type: 'death_knight' },
+    thunder_god:  { name: '⚡ Thunder God',  body: '#1a3a6e', head: '#0d1f42', outline: '#FFD700', cost: 100000,  type: 'thunder_god'  },
+    void_reaper:  { name: '🌌 Void Reaper', body: '#0d0015', head: '#1a0030', outline: '#9400D3', cost: 150000,  type: 'void_reaper'  },
 };
 
 const ENEMY_COLORS = { body: '#FF4444', head: '#FF6666', outline: '#CC2222' };

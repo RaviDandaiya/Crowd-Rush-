@@ -119,10 +119,20 @@ class Crowd {
         const isGiant = type === 'giant';
         const sf = isGiant ? 2.0 : 1.0;
         const skin = CROWD_SKINS[this.skinKey] || CROWD_SKINS.default;
+        let unitSkinType = skin.type;
+        if (this.game.currentLevel && this.game.currentLevel.id === 20) {
+            const aliveNormalCount = this.units.filter(u => u.alive && u.type === 'normal').length;
+            if (aliveNormalCount === 0 && type !== 'giant') {
+                unitSkinType = 'prince';
+            } else {
+                unitSkinType = 'soldier';
+            }
+        }
         
         const unitGroup = new THREE.Group();
         let mainMesh = null;
         let rainbowMat = null;
+        let swordMesh = null;
         
         // Helper to retrieve or create cached materials for skins
         const getCachedMat = (key, hexColor, metalness = 0.2, roughness = 0.4) => {
@@ -419,6 +429,287 @@ class Crowd {
             eyeR.position.set(0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
             body.add(eyeR);
 
+        } else if (unitSkinType === 'prince') {
+            // Prince: Royal blue outfit, golden crown, red cape, eyes
+            const royalMat = getCachedMat('princeRoyal', '#1E40AF', 0.2, 0.4);
+            const geomBody = isGiant ? this.geomBodyGiant : this.geomBodyNormal;
+            const body = new THREE.Mesh(geomBody, royalMat);
+            body.position.y = isGiant ? 4.5 : 2.2;
+            unitGroup.add(body);
+            mainMesh = body;
+
+            // Golden Crown
+            const crownMat = getCachedMat('princeCrown', '#D97706', 0.9, 0.1);
+            const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.6 * sf, 0.4 * sf, 0.4 * sf, 6), crownMat);
+            crown.position.set(0, isGiant ? 3.0 : 1.6, 0);
+            body.add(crown);
+
+            // Red Cape
+            const capeMat = getCachedMat('princeCape', '#DC2626', 0.1, 0.6);
+            const cape = new THREE.Mesh(new THREE.BoxGeometry(1.3 * sf, 2.0 * sf, 0.1 * sf), capeMat);
+            cape.position.set(0, isGiant ? 0.5 : 0.2, -0.9 * sf);
+            cape.rotation.x = 0.25;
+            body.add(cape);
+
+            // Eyes
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(isGiant ? 0.35 : 0.2, 8, 8), matB);
+            eyeL.position.set(-0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(eyeL);
+            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(isGiant ? 0.35 : 0.2, 8, 8), matB);
+            eyeR.position.set(0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(eyeR);
+
+            // Golden Prince Sword
+            const swordGroup = new THREE.Group();
+            const bladeGeom = new THREE.BoxGeometry(0.25 * sf, 1.8 * sf, 0.08 * sf);
+            const bladeMat = getCachedMat('princeSwordBlade', '#E2E8F0', 0.9, 0.1);
+            const blade = new THREE.Mesh(bladeGeom, bladeMat);
+            blade.position.y = 0.9 * sf;
+            swordGroup.add(blade);
+            const guardGeom = new THREE.BoxGeometry(0.8 * sf, 0.15 * sf, 0.15 * sf);
+            const guardMat = getCachedMat('princeSwordGuard', '#F59E0B', 0.8, 0.2);
+            const guard = new THREE.Mesh(guardGeom, guardMat);
+            swordGroup.add(guard);
+            const handleGeom = new THREE.CylinderGeometry(0.1 * sf, 0.1 * sf, 0.5 * sf, 6);
+            const handleMat = getCachedMat('princeSwordHandle', '#78350F', 0.1, 0.8);
+            const handle = new THREE.Mesh(handleGeom, handleMat);
+            handle.position.y = -0.25 * sf;
+            swordGroup.add(handle);
+            swordGroup.position.set(1.1 * sf, 0, 0.6 * sf);
+            swordGroup.rotation.set(0.2, 0, -0.3);
+            body.add(swordGroup);
+            swordMesh = swordGroup;
+
+        } else if (unitSkinType === 'soldier') {
+            // Soldier: Steel/metallic body, red shoulder/chest plates, steel helmet
+            const steelMat = getCachedMat('soldierSteel', '#94A3B8', 0.8, 0.2); // shiny steel
+            const geomBody = isGiant ? this.geomBodyGiant : this.geomBodyNormal;
+            const body = new THREE.Mesh(geomBody, steelMat);
+            body.position.y = isGiant ? 4.5 : 2.2;
+            unitGroup.add(body);
+            mainMesh = body;
+
+            // Soldier helmet
+            const helmetMat = getCachedMat('soldierHelmet', '#64748B', 0.8, 0.2);
+            const helmet = new THREE.Mesh(new THREE.CylinderGeometry(0.7 * sf, 0.7 * sf, 0.5 * sf, 8), helmetMat);
+            helmet.position.set(0, isGiant ? 2.8 : 1.5, 0);
+            body.add(helmet);
+
+            // Red chest emblem / sash
+            const sashMat = getCachedMat('soldierSash', '#DC2626', 0.1, 0.6);
+            const sash = new THREE.Mesh(new THREE.BoxGeometry(1.2 * sf, 0.3 * sf, 0.25 * sf), sashMat);
+            sash.position.set(0, isGiant ? 0.8 : 0.4, isGiant ? 2.1 : 0.95);
+            body.add(sash);
+
+            // Eyes
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(isGiant ? 0.35 : 0.2, 8, 8), matB);
+            eyeL.position.set(-0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(eyeL);
+            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(isGiant ? 0.35 : 0.2, 8, 8), matB);
+            eyeR.position.set(0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(eyeR);
+
+            // Soldier Sword
+            const swordGroup = new THREE.Group();
+            const bladeGeom = new THREE.BoxGeometry(0.2 * sf, 1.4 * sf, 0.06 * sf);
+            const bladeMat = getCachedMat('soldierSwordBlade', '#CBD5E1', 0.8, 0.2);
+            const blade = new THREE.Mesh(bladeGeom, bladeMat);
+            blade.position.y = 0.7 * sf;
+            swordGroup.add(blade);
+            const guardGeom = new THREE.BoxGeometry(0.6 * sf, 0.12 * sf, 0.12 * sf);
+            const guardMat = getCachedMat('soldierSwordGuard', '#475569', 0.5, 0.4);
+            const guard = new THREE.Mesh(guardGeom, guardMat);
+            swordGroup.add(guard);
+            const handleGeom = new THREE.CylinderGeometry(0.08 * sf, 0.08 * sf, 0.4 * sf, 6);
+            const handleMat = getCachedMat('soldierSwordHandle', '#1E293B', 0.1, 0.8);
+            const handle = new THREE.Mesh(handleGeom, handleMat);
+            handle.position.y = -0.2 * sf;
+            swordGroup.add(handle);
+            swordGroup.position.set(1.1 * sf, 0, 0.6 * sf);
+            swordGroup.rotation.set(0.2, 0, -0.3);
+            body.add(swordGroup);
+            swordMesh = swordGroup;
+
+        } else if (skin.type === 'death_knight') {
+            // Death Knight: Black armored body, dark visor, shoulder plates, power axe
+            const armorMat = getCachedMat('dkArmor', '#1a1a2e', 0.9, 0.1);
+            armorMat.emissive = new THREE.Color('#3B0000');
+            armorMat.emissiveIntensity = 0.3;
+            const geomBody = isGiant ? this.geomBodyGiant : this.geomBodyNormal;
+            const body = new THREE.Mesh(geomBody, armorMat);
+            body.position.y = isGiant ? 4.5 : 2.2;
+            unitGroup.add(body);
+            mainMesh = body;
+
+            // Dark visor (red glow)
+            const visorMat = getCachedMat('dkVisor', '#8B0000', 0.1, 0.05);
+            visorMat.emissive = new THREE.Color('#FF0000');
+            visorMat.emissiveIntensity = 0.6;
+            const visor = new THREE.Mesh(new THREE.BoxGeometry(1.0 * sf, 0.25 * sf, 0.4 * sf), visorMat);
+            visor.position.set(0, isGiant ? 1.5 : 0.8, isGiant ? 2.1 : 0.95);
+            body.add(visor);
+
+            // Shoulder armor plates
+            const shoulderMat = getCachedMat('dkShoulder', '#111122', 0.9, 0.1);
+            const shoulderGeom = new THREE.BoxGeometry(0.6 * sf, 0.4 * sf, 0.6 * sf);
+            const shL = new THREE.Mesh(shoulderGeom, shoulderMat);
+            shL.position.set(-1.0 * sf, isGiant ? 1.0 : 0.5, 0);
+            body.add(shL);
+            const shR = new THREE.Mesh(shoulderGeom, shoulderMat);
+            shR.position.set(1.0 * sf, isGiant ? 1.0 : 0.5, 0);
+            body.add(shR);
+
+            // Death Axe
+            const axeGroup = new THREE.Group();
+            const axeHandleMat = getCachedMat('dkAxeHandle', '#2D1B00', 0.2, 0.8);
+            const axeHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.1 * sf, 0.1 * sf, 2.0 * sf, 6), axeHandleMat);
+            axeHandle.position.y = 1.0 * sf;
+            axeGroup.add(axeHandle);
+            const axeHeadMat = getCachedMat('dkAxeHead', '#8B0000', 0.9, 0.1);
+            axeHeadMat.emissive = new THREE.Color('#FF2200');
+            axeHeadMat.emissiveIntensity = 0.5;
+            const axeHead = new THREE.Mesh(new THREE.ConeGeometry(0.7 * sf, 1.0 * sf, 4), axeHeadMat);
+            axeHead.position.y = 2.1 * sf;
+            axeHead.rotation.z = Math.PI / 4;
+            axeGroup.add(axeHead);
+            axeGroup.position.set(1.2 * sf, -0.4 * sf, 0.4 * sf);
+            axeGroup.rotation.z = 0.4;
+            body.add(axeGroup);
+            swordMesh = axeGroup;
+
+        } else if (skin.type === 'thunder_god') {
+            // Thunder God: Cobalt blue muscular body, gold lightning horns, wings, crackling hammer
+            const godMat = getCachedMat('tgBody', '#1a3a6e', 0.6, 0.2);
+            godMat.emissive = new THREE.Color('#002244');
+            godMat.emissiveIntensity = 0.4;
+            const geomBody = isGiant ? this.geomBodyGiant : this.geomBodyNormal;
+            const body = new THREE.Mesh(geomBody, godMat);
+            body.position.y = isGiant ? 4.5 : 2.2;
+            unitGroup.add(body);
+            mainMesh = body;
+
+            // Gold lightning horns
+            const hornMat = getCachedMat('tgHorn', '#FFD700', 0.9, 0.05);
+            hornMat.emissive = new THREE.Color('#FFD700');
+            hornMat.emissiveIntensity = 0.5;
+            const hornGeom = new THREE.ConeGeometry(0.2 * sf, 0.9 * sf, 4);
+            const hornL = new THREE.Mesh(hornGeom, hornMat);
+            hornL.position.set(-0.55 * sf, isGiant ? 2.8 : 1.5, 0.2 * sf);
+            hornL.rotation.set(-0.3, 0, -0.5);
+            body.add(hornL);
+            const hornR = new THREE.Mesh(hornGeom, hornMat);
+            hornR.position.set(0.55 * sf, isGiant ? 2.8 : 1.5, 0.2 * sf);
+            hornR.rotation.set(-0.3, 0, 0.5);
+            body.add(hornR);
+
+            // Wings (dark blue triangular panels)
+            const wingMat = getCachedMat('tgWing', '#0d1f42', 0.5, 0.4);
+            const wingGeom = new THREE.BoxGeometry(1.8 * sf, 1.2 * sf, 0.08 * sf);
+            const wingL = new THREE.Mesh(wingGeom, wingMat);
+            wingL.position.set(-1.5 * sf, isGiant ? 0.6 : 0.3, -0.5 * sf);
+            wingL.rotation.set(0.3, -0.3, -0.15);
+            body.add(wingL);
+            const wingR = new THREE.Mesh(wingGeom, wingMat);
+            wingR.position.set(1.5 * sf, isGiant ? 0.6 : 0.3, -0.5 * sf);
+            wingR.rotation.set(0.3, 0.3, 0.15);
+            body.add(wingR);
+
+            // Eyes (lightning yellow)
+            const eyeMat = getCachedMat('tgEyes', '#FFD700', 0.0, 0.2);
+            eyeMat.emissive = new THREE.Color('#FFAA00');
+            eyeMat.emissiveIntensity = 0.8;
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(isGiant ? 0.35 : 0.2, 8, 8), eyeMat);
+            eyeL.position.set(-0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(eyeL);
+            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(isGiant ? 0.35 : 0.2, 8, 8), eyeMat);
+            eyeR.position.set(0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(eyeR);
+
+            // Thunder Hammer
+            const hammerGroup = new THREE.Group();
+            const hamMat = getCachedMat('tgHammer', '#4a7ab5', 0.85, 0.15);
+            const hamHead = new THREE.Mesh(new THREE.BoxGeometry(1.0 * sf, 0.7 * sf, 0.7 * sf), hamMat);
+            hamHead.position.y = 1.6 * sf;
+            hammerGroup.add(hamHead);
+            const hamHandleMat = getCachedMat('tgHamHandle', '#2a4a7a', 0.4, 0.6);
+            const hamHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.1 * sf, 0.1 * sf, 1.5 * sf, 6), hamHandleMat);
+            hamHandle.position.y = 0.75 * sf;
+            hammerGroup.add(hamHandle);
+            // Lightning rune on hammer head
+            const runeMat = getCachedMat('tgRune', '#FFD700', 0.0, 0.1);
+            runeMat.emissive = new THREE.Color('#FFD700');
+            runeMat.emissiveIntensity = 1.0;
+            const rune = new THREE.Mesh(new THREE.BoxGeometry(0.25 * sf, 0.6 * sf, 0.08 * sf), runeMat);
+            rune.position.set(0, 0, 0.36 * sf);
+            hamHead.add(rune);
+            hammerGroup.position.set(1.3 * sf, -0.5 * sf, 0.5 * sf);
+            hammerGroup.rotation.set(0.2, 0, -0.4);
+            body.add(hammerGroup);
+            swordMesh = hammerGroup;
+
+        } else if (skin.type === 'void_reaper') {
+            // Void Reaper: Pitch-black ethereal body, flowing dark cloak, glowing purple scythe
+            const voidMat = getCachedMat('vrBody', '#0d0015', 0.2, 0.8);
+            voidMat.emissive = new THREE.Color('#2d0050');
+            voidMat.emissiveIntensity = 0.4;
+            const geomBody = isGiant ? this.geomBodyGiant : this.geomBodyNormal;
+            const body = new THREE.Mesh(geomBody, voidMat);
+            body.position.y = isGiant ? 4.5 : 2.2;
+            unitGroup.add(body);
+            mainMesh = body;
+
+            // Flowing dark cloak (two wide angled panels)
+            const cloakMat = getCachedMat('vrCloak', '#0a001a', 0.1, 0.9);
+            const cloakL = new THREE.Mesh(new THREE.BoxGeometry(0.9 * sf, 2.2 * sf, 0.08 * sf), cloakMat);
+            cloakL.position.set(-0.6 * sf, isGiant ? 0.2 : 0.0, -0.9 * sf);
+            cloakL.rotation.set(0.2, -0.2, 0.1);
+            body.add(cloakL);
+            const cloakR = new THREE.Mesh(new THREE.BoxGeometry(0.9 * sf, 2.2 * sf, 0.08 * sf), cloakMat);
+            cloakR.position.set(0.6 * sf, isGiant ? 0.2 : 0.0, -0.9 * sf);
+            cloakR.rotation.set(0.2, 0.2, -0.1);
+            body.add(cloakR);
+
+            // Void hood (dark hemisphere)
+            const hoodMat = getCachedMat('vrHood', '#050010', 0.1, 0.9);
+            const hood = new THREE.Mesh(new THREE.SphereGeometry(0.8 * sf, 8, 8, 0, Math.PI * 2, 0, Math.PI * 0.6), hoodMat);
+            hood.position.set(0, isGiant ? 2.6 : 1.3, 0);
+            hood.rotation.x = 0.4;
+            body.add(hood);
+
+            // Glowing void eyes (purple)
+            const eyeMat = getCachedMat('vrEyes', '#9400D3', 0.0, 0.1);
+            eyeMat.emissive = new THREE.Color('#DD00FF');
+            eyeMat.emissiveIntensity = 1.0;
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(isGiant ? 0.35 : 0.2, 8, 8), eyeMat);
+            eyeL.position.set(-0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(eyeL);
+            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(isGiant ? 0.35 : 0.2, 8, 8), eyeMat);
+            eyeR.position.set(0.35 * sf, isGiant ? 1.5 : 0.8, isGiant ? 2.2 : 1.0);
+            body.add(eyeR);
+
+            // Cosmic Scythe
+            const scytheGroup = new THREE.Group();
+            const poleHandleMat = getCachedMat('vrPole', '#1a0030', 0.3, 0.7);
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08 * sf, 0.08 * sf, 2.4 * sf, 6), poleHandleMat);
+            pole.position.y = 1.2 * sf;
+            scytheGroup.add(pole);
+            const bladeMat2 = getCachedMat('vrScytheBlade', '#5500AA', 0.1, 0.1);
+            bladeMat2.emissive = new THREE.Color('#CC00FF');
+            bladeMat2.emissiveIntensity = 0.8;
+            // Curved scythe blade (approximated as rotated box)
+            const scBlade = new THREE.Mesh(new THREE.BoxGeometry(1.5 * sf, 0.15 * sf, 0.08 * sf), bladeMat2);
+            scBlade.position.set(0.5 * sf, 2.3 * sf, 0);
+            scBlade.rotation.z = -0.7;
+            scytheGroup.add(scBlade);
+            const scTip = new THREE.Mesh(new THREE.ConeGeometry(0.18 * sf, 0.5 * sf, 4), bladeMat2);
+            scTip.position.set(1.1 * sf, 1.8 * sf, 0);
+            scTip.rotation.z = -1.2;
+            scytheGroup.add(scTip);
+            scytheGroup.position.set(-1.2 * sf, -0.5 * sf, 0.4 * sf);
+            scytheGroup.rotation.z = -0.3;
+            body.add(scytheGroup);
+            swordMesh = scytheGroup;
+
         } else {
             // Default capsule styling
             const geomBody = isGiant ? this.geomBodyGiant : this.geomBodyNormal;
@@ -477,7 +768,8 @@ class Crowd {
             alive: true,
             ox: unitGroup.position.x,
             oz: unitGroup.position.z,
-            rainbowMat: rainbowMat
+            rainbowMat: rainbowMat,
+            sword: swordMesh
         };
     }
 
@@ -651,7 +943,44 @@ class Crowd {
                 let syFactor = 1.0;
                 let szFactor = 1.0;
 
-                if (!moving) {
+                if (this.game.state === 'RESULTS' || (this.game.fortress && this.game.fortress.state === 'destroyed')) {
+                    // Happy victory celebration animation!
+                    tx = u.ox * spreadScale;
+                    tz = u.oz * spreadScale;
+
+                    u.mesh.position.y = Math.abs(Math.sin(u.phase * 3.5)) * 4.5;
+                    u.mesh.rotation.y += dt * 7.0; // spin quickly
+                    syFactor = 1.25 + Math.sin(u.phase * 4) * 0.15;
+                    sxFactor = 0.85 - Math.sin(u.phase * 4) * 0.1;
+                    szFactor = 0.85 - Math.sin(u.phase * 4) * 0.1;
+                    u.targetScale = 1.1;
+
+                    // Raise swords high in victory!
+                    if (u.sword) {
+                        u.sword.rotation.x = Utils.lerp(u.sword.rotation.x, -1.4 + Math.sin(u.phase * 4.0) * 0.15, 0.2);
+                        u.sword.rotation.z = Utils.lerp(u.sword.rotation.z, 0, 0.2);
+                    }
+
+                    // Level 20 special: Prince Arthur runs up to Princess Aurelia!
+                    if (this.game.currentLevel && this.game.currentLevel.id === 20) {
+                        if (i === 0) {
+                            // Prince Arthur stands right in front of the Princess (facing her / the camera)
+                            tx = 0;
+                            tz = -5.0; 
+                            u.mesh.position.y = Math.abs(Math.sin(u.phase * 2.0)) * 2; // jump happily
+                            u.mesh.rotation.y = Math.PI; 
+                            if (u.sword) {
+                                // Prince salutes Princess with sword
+                                u.sword.rotation.x = -1.0;
+                                u.sword.rotation.z = -0.5;
+                            }
+                        } else {
+                            // Other soldiers stand behind them in the background so they don't block the view
+                            tx = u.ox * spreadScale;
+                            tz = u.oz * spreadScale - 20.0;
+                        }
+                    }
+                } else if (!moving) {
                     if (u.ringAngle === undefined) {
                         // Spacing based on index to form a clean line-by-line chain
                         u.ringAngle = i * 0.15;
@@ -678,18 +1007,25 @@ class Crowd {
                         sxFactor = 0.85;
                         szFactor = 0.85;
                         
-                        // Lean forward in direction of attack (-Z)
-                        u.mesh.rotation.x = Utils.lerp(u.mesh.rotation.x || 0, 0.35, 0.2);
+                        // Lean forward in direction of attack (-Z) and swing sword!
+                        u.mesh.rotation.x = Utils.lerp(u.mesh.rotation.x || 0, 0.45, 0.2);
+                        if (u.sword) {
+                            u.sword.rotation.x = Utils.lerp(u.sword.rotation.x, -1.0 + Math.sin(u.phase * 8.0) * 1.0, 0.35);
+                            u.sword.rotation.z = Utils.lerp(u.sword.rotation.z, -0.6 + Math.sin(u.phase * 4.0) * 0.2, 0.35);
+                        }
                     } else {
                         // Squash when returning/landing
                         syFactor = 0.85;
                         sxFactor = 1.15;
                         szFactor = 1.15;
                         u.mesh.rotation.x = Utils.lerp(u.mesh.rotation.x || 0, 0, 0.2);
+                        if (u.sword) {
+                            u.sword.rotation.x = Utils.lerp(u.sword.rotation.x, 0.2, 0.25);
+                            u.sword.rotation.z = Utils.lerp(u.sword.rotation.z, -0.3, 0.25);
+                        }
                     }
                     
                     // Face moving direction (heading yaw rotation)
-                    // Derivative of path: dx/dt = cos(t)*orbitW, dz/dt = sin(t)*orbitH
                     const vx = Math.cos(t) * orbitW;
                     const vz = Math.sin(t) * orbitH;
                     const targetRotY = Math.atan2(vx, vz);
@@ -702,6 +1038,12 @@ class Crowd {
                     const rotLerp = 1 - Math.pow(1 - 0.10, dt * 60);
                     u.mesh.rotation.x = Utils.lerp(u.mesh.rotation.x || 0, 0, rotLerp);
                     u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, 0, rotLerp);
+                    
+                    // Sway sword slightly while walking/running
+                    if (u.sword) {
+                        u.sword.rotation.x = Utils.lerp(u.sword.rotation.x, 0.2 + Math.sin(u.phase) * 0.15, 0.2);
+                        u.sword.rotation.z = Utils.lerp(u.sword.rotation.z, -0.3 + Math.cos(u.phase) * 0.05, 0.2);
+                    }
                 }
                 
                 const posLerp = 1 - Math.pow(1 - 0.18, dt * 60);

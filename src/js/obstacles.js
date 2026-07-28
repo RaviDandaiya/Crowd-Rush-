@@ -29,7 +29,7 @@ class ObstacleManager {
                     );
                     mesh.rotation.x = Math.PI / 2;
                 } else if (obs.type === 'pit') {
-                    const w = obs.width || 20;
+                    const w = Math.min(38, obs.width || 20);
                     mesh = new THREE.Mesh(
                         new THREE.BoxGeometry(w, 0.4, 25),
                         new THREE.MeshBasicMaterial({color: obs.isLava ? 0xFF3300 : 0x111111})
@@ -112,7 +112,7 @@ class ObstacleManager {
         const isSaw = obs.type === 'saw';
         const isHammer = obs.type === 'hammer';
         
-        const pitW = obs.width || 20;
+        const pitW = Math.min(38, obs.width || 20);
         const pitL = 25;
         
         const sawRadius = 8;

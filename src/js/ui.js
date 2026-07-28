@@ -33,6 +33,12 @@ class UI {
 
         // Crowd badge pop
         this._badgePop = 1;
+
+        // Shop tab state: 'upgrades' | 'skins'
+        this._shopTab = 'upgrades';
+        // Shop skins scroll offset
+        this._shopScrollY = 0;
+        this._shopLastTouchY = null;
     }
 
     _applyTheme(theme) {
@@ -167,9 +173,11 @@ class UI {
         const radius = bh / 2;
 
         ctx.save();
-        // Track background
+        // Track background with premium glass border
         ctx.fillStyle = 'rgba(10, 15, 40, 0.6)';
-        ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, radius); ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, radius); ctx.fill(); ctx.stroke();
 
         // Filled bar
         if (prog > 0.01) {
@@ -294,9 +302,11 @@ class UI {
         const bx = w - bw - 12, by = 12;
 
         ctx.save();
-        // Pill background
+        // Pill background with premium glass border
         ctx.fillStyle = 'rgba(10, 15, 40, 0.6)';
-        ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, bh / 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, bh / 2); ctx.fill(); ctx.stroke();
 
         // Gem icon
         const cx = bx + 14, cy = by + bh / 2;
@@ -621,40 +631,65 @@ class UI {
         ctx.save();
         const r = Math.min(h / 2, 16);
 
+        // Ambient glow for interactivity
+        const glowPhase = (this.t * 2 + (x * 0.01)) % (Math.PI * 2);
+        const glowAlpha = 0.4 + Math.sin(glowPhase) * 0.2;
+        ctx.shadowColor = c2;
+        ctx.shadowBlur = 15 * glowAlpha;
+        
         // Soft drop shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-        ctx.beginPath(); ctx.roundRect(x - w/2 + 2, y - h/2 + 4, w, h, r); ctx.fill();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.beginPath(); ctx.roundRect(x - w/2, y - h/2 + 6, w, h, r); ctx.fill();
+        ctx.shadowBlur = 0; // Reset for crisp layers
 
-        // 3D base depth
+        // 3D base depth (Darker rim)
         ctx.fillStyle = c1;
-        ctx.beginPath(); ctx.roundRect(x - w/2, y - h/2 + 3, w, h, r); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(x - w/2, y - h/2 + 4, w, h, r); ctx.fill();
 
-        // Top face gradient
+        // Main glass body gradient
         const g = ctx.createLinearGradient(x, y - h/2, x, y + h/2);
         g.addColorStop(0, c2);
+        g.addColorStop(0.4, c2);
         g.addColorStop(1, c1);
         ctx.fillStyle = g;
         ctx.beginPath(); ctx.roundRect(x - w/2, y - h/2, w, h, r); ctx.fill();
 
-        // Clean specular highlight
-        const shineG = ctx.createLinearGradient(x, y - h/2, x, y - h/2 + h * 0.4);
-        shineG.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
-        shineG.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
+        // Dynamic Glass Specular Highlight (Sweeping reflection)
+        const shineG = ctx.createLinearGradient(x - w/2, y - h/2, x + w/2, y + h/2);
+        const sweep = (this.t * 0.5) % 2; // Sweeps from 0 to 2
+        const pos = sweep - 0.4;
+        const p0 = Math.max(0, Math.min(1, pos - 0.2));
+        const p1 = Math.max(0, Math.min(1, pos));
+        const p2 = Math.max(0, Math.min(1, pos + 0.2));
+        shineG.addColorStop(p0, 'rgba(255, 255, 255, 0)');
+        shineG.addColorStop(p1, 'rgba(255, 255, 255, 0.4)');
+        shineG.addColorStop(p2, 'rgba(255, 255, 255, 0)');
         ctx.fillStyle = shineG;
-        ctx.beginPath(); ctx.roundRect(x - w/2 + 2, y - h/2 + 2, w - 4, h * 0.38, r); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(x - w/2 + 2, y - h/2 + 2, w - 4, h * 0.45, r - 2); ctx.fill();
 
-        // Crisp border
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.roundRect(x - w/2, y - h/2, w, h, r); ctx.stroke();
+        // Inner rim light (Top edge highlight)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x - w/2 + r, y - h/2 + r, r, Math.PI, 1.5 * Math.PI);
+        ctx.lineTo(x + w/2 - r, y - h/2);
+        ctx.arc(x + w/2 - r, y - h/2 + r, r, 1.5 * Math.PI, 2 * Math.PI);
+        ctx.stroke();
 
-        // Typography
+        // Typography with deep text shadow
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = `900 ${Math.min(16, h * 0.44)}px "Outfit", sans-serif`;
+        ctx.font = `800 ${Math.min(18, h * 0.45)}px "Outfit", sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'; ctx.shadowBlur = 3;
-        ctx.fillText(text, x, y - 1);
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'; 
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetY = 2;
+        ctx.fillText(text, x, y);
 
+        // Reset shadow state before restore
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
         ctx.restore();
         if (id) this._regBtn(x - w/2, y - h/2, w, h, id);
         return { x: x - w/2, y: y - h/2, w, h, id };
@@ -665,7 +700,7 @@ class UI {
     // ============================================================
     drawMainMenu(ctx) {
         this.activeButtons = [];
-        const w = GC.W, h = GC.H;
+        const w = GC.W, h = GC.H; // 400 x 720
 
         if (this.showingPrivacyPolicy) { this.drawPrivacyPolicy(ctx); return; }
         if (this.showingTerms)         { this.drawTerms(ctx); return; }
@@ -674,42 +709,118 @@ class UI {
         if (this.showingSettings)      { this.drawSettings(ctx); return; }
         if (this.showingLeaderboard)   { this.drawLeaderboard(ctx); return; }
 
-        // Gradient background
+        // ── 1. DEEP SPACE BACKGROUND ─────────────────────────────────────
         const bg = ctx.createLinearGradient(0, 0, 0, h);
-        bg.addColorStop(0, '#0A1628');
-        bg.addColorStop(1, '#0D2240');
+        bg.addColorStop(0, '#050C1A');
+        bg.addColorStop(0.5, '#0B1230');
+        bg.addColorStop(1, '#030810');
         ctx.fillStyle = bg;
         ctx.fillRect(0, 0, w, h);
 
-        // Animated grid dots background
+        // ── 2. AURORA NEBULA ORBS (using globalAlpha, not screen blend) ──
         ctx.save();
-        for (let i = 0; i < 30; i++) {
-            const px = ((i * 127 + this.t * 18) % w);
-            const py = ((i * 173 + this.t * 12) % h);
-            ctx.globalAlpha = 0.15 + Math.sin(i + this.t * 1.5) * 0.1;
-            ctx.fillStyle = ['#00B4FF', '#FF69B4', '#FFD700', '#00FF88'][i % 4];
-            ctx.beginPath(); ctx.arc(px, py, 2 + Math.sin(i + this.t) * 1, 0, Math.PI * 2); ctx.fill();
+        const orbDefs = [
+            { cx: w * 0.15 + Math.sin(this.t * 0.5) * 40, cy: h * 0.18 + Math.cos(this.t * 0.4) * 40, r: 200, r_inner: 0, ca: 0.18, color: '0, 229, 255' },
+            { cx: w * 0.9  + Math.cos(this.t * 0.6) * 45, cy: h * 0.35 + Math.sin(this.t * 0.5) * 45, r: 240, r_inner: 0, ca: 0.14, color: '255, 46, 147'  },
+            { cx: w * 0.5  + Math.sin(this.t * 0.3) * 60, cy: h * 0.65 + Math.cos(this.t * 0.7) * 35, r: 260, r_inner: 0, ca: 0.10, color: '112, 0, 255'   },
+        ];
+        for (const o of orbDefs) {
+            const grad = ctx.createRadialGradient(o.cx, o.cy, o.r_inner, o.cx, o.cy, o.r);
+            grad.addColorStop(0, `rgba(${o.color}, ${o.ca})`);
+            grad.addColorStop(1, `rgba(${o.color}, 0)`);
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = grad;
+            ctx.beginPath(); ctx.arc(o.cx, o.cy, o.r, 0, Math.PI * 2); ctx.fill();
         }
+        // Floating star particles
+        for (let i = 0; i < 35; i++) {
+            const px = ((i * 137 + this.t * 12) % w);
+            const py = ((i * 179 + this.t * 20) % h);
+            ctx.globalAlpha = 0.12 + Math.sin(i * 0.8 + this.t * 2) * 0.1;
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath(); ctx.arc(px, py, (i % 3 === 0) ? 1.5 : 1, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
         ctx.restore();
 
-        // Game title card
-        this._drawTitleCard(ctx, w, h);
+        // ── LAYOUT CONSTANTS (absolute px for 720px canvas) ──────────────
+        //   Title center:         y = 125
+        //   Level card center:    y = 270
+        //   PLAY button center:   y = 375
+        //   Bottom tabs center:   y = 460
+        //   Coin badge center:    y = 550
+        //   Daily Quest center:   y = 625
+        //   Version text:         y = 705
 
-        // Level selector card
-        this._drawLevelCard(ctx, w, h);
+        const TITLE_Y      = 128;
+        const LEVEL_Y      = 272;
+        const PLAY_Y       = 378;
+        const TABS_Y       = 462;
+        const COIN_Y       = 552;
+        const DAILY_Y      = 628;
 
-        // Main PLAY button
-        this._btn(ctx, w / 2, h * 0.52, 200, 58, '▶   PLAY', '#00AA55', '#00EE77', 'play');
+        // ── 3. TITLE CARD ─────────────────────────────────────────────────
+        this._drawTitleCard(ctx, w, h, TITLE_Y);
 
-        // Bottom row: Shop | World Map | Leaderboard | Settings
-        this._drawMenuBottomRow(ctx, w, h);
+        // ── 4. LEVEL SELECTOR CARD ────────────────────────────────────────
+        this._drawLevelCard(ctx, w, h, LEVEL_Y);
 
-        // Coin display
-        this._drawMenuCoinBadge(ctx, w, h);
+        // ── 5. PLAY BUTTON ────────────────────────────────────────────────
+        ctx.save();
+        const auraSize = 14 + Math.sin(this.t * 4) * 8;
+        ctx.shadowColor = '#00EE77';
+        ctx.shadowBlur = auraSize;
+        ctx.fillStyle = 'rgba(0, 238, 119, 0.12)';
+        ctx.beginPath(); ctx.roundRect(w / 2 - 105, PLAY_Y - 30, 210, 60, 18); ctx.fill();
+        ctx.restore();
+        this._btn(ctx, w / 2, PLAY_Y, 210, 56, '▶   PLAY', '#00AA55', '#00EE77', 'play');
+
+        // ── 6. BOTTOM ICON TABS ───────────────────────────────────────────
+        this._drawMenuBottomRow(ctx, w, h, TABS_Y);
+
+        // ── 7. COIN BADGE ─────────────────────────────────────────────────
+        this._drawMenuCoinBadge(ctx, w, COIN_Y);
+
+        // ── 8. DAILY QUEST BANNER ─────────────────────────────────────────
+        const dw = w - 32, dh = 50;
+        const dlx = w / 2 - dw / 2, dly = DAILY_Y - dh / 2;
+        ctx.save();
+        ctx.shadowColor = 'rgba(192, 132, 252, 0.55)';
+        ctx.shadowBlur = 18 + Math.sin(this.t * 3) * 5;
+        ctx.shadowOffsetY = 4;
+        ctx.fillStyle = 'rgba(35, 15, 75, 0.75)';
+        ctx.beginPath(); ctx.roundRect(dlx, dly, dw, dh, 14); ctx.fill();
+        ctx.shadowColor = 'transparent'; ctx.shadowOffsetY = 0;
+        // Gradient sheen
+        const dg = ctx.createLinearGradient(dlx, dly, dlx + dw, dly + dh);
+        dg.addColorStop(0, 'rgba(192, 132, 252, 0.3)');
+        dg.addColorStop(0.5, 'rgba(255, 100, 255, 0.08)');
+        dg.addColorStop(1, 'rgba(192, 132, 252, 0.3)');
+        ctx.fillStyle = dg;
+        ctx.beginPath(); ctx.roundRect(dlx, dly, dw, dh, 14); ctx.fill();
+        // Neon border
+        ctx.strokeStyle = 'rgba(192, 132, 252, 0.75)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(dlx, dly, dw, dh, 14); ctx.stroke();
+        ctx.restore();
+        // Text
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 12px "Outfit", sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('📅  DAILY QUEST: PLAY TODAY\'S UNIQUE LEVEL', w / 2, DAILY_Y - 7);
+        ctx.fillStyle = '#C084FC';
+        ctx.font = 'bold 10px "Outfit", sans-serif';
+        ctx.fillText('REWARD: +2,000 COINS & A RANDOM FREE SKIN!', w / 2, DAILY_Y + 11);
+        this._regBtn(dlx, dly, dw, dh, 'daily_level');
+
+        // ── 9. VERSION TEXT ───────────────────────────────────────────────
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        ctx.font = '10px "Outfit", sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('Crowd Rush v2.0 — Premium Edition', w / 2, h - 10);
     }
 
-    _drawTitleCard(ctx, w, h) {
-        const cy = h * 0.17;
+    _drawTitleCard(ctx, w, h, cy) {
         const ts = 1 + Math.sin(this.t * 2) * 0.015;
 
         ctx.save();
@@ -733,105 +844,133 @@ class UI {
         ctx.restore();
 
         // 2. Soft ambient glow
-        const aura = ctx.createRadialGradient(0, 0, 10, 0, 0, 110);
-        aura.addColorStop(0, 'rgba(0, 229, 255, 0.25)');
-        aura.addColorStop(0.5, 'rgba(255, 46, 147, 0.1)');
+        const aura = ctx.createRadialGradient(0, 0, 10, 0, 0, 120);
+        aura.addColorStop(0, 'rgba(0, 229, 255, 0.35)');
+        aura.addColorStop(0.5, 'rgba(255, 46, 147, 0.15)');
         aura.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = aura;
-        ctx.beginPath(); ctx.arc(0, 0, 110, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, 120, 0, Math.PI * 2); ctx.fill();
 
         // 3. Futuristic decorative wings (Chevrons)
         ctx.save();
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 3.5;
         ctx.lineCap = 'round';
-        ctx.shadowBlur = 10;
+        ctx.lineJoin = 'round';
+        ctx.shadowBlur = 15;
         
         // Left pulsing wing
-        const leftAlpha = 0.3 + Math.sin(this.t * 5) * 0.2;
+        const leftAlpha = 0.4 + Math.sin(this.t * 5) * 0.3;
         ctx.strokeStyle = '#00E5FF';
         ctx.shadowColor = '#00E5FF';
         ctx.globalAlpha = leftAlpha;
         ctx.beginPath();
-        ctx.moveTo(-135, -20);
-        ctx.lineTo(-155, 0);
-        ctx.lineTo(-135, 20);
-        ctx.moveTo(-125, -15);
-        ctx.lineTo(-141, 0);
-        ctx.lineTo(-125, 15);
+        ctx.moveTo(-140, -20);
+        ctx.lineTo(-160, 0);
+        ctx.lineTo(-140, 20);
+        ctx.moveTo(-130, -15);
+        ctx.lineTo(-146, 0);
+        ctx.lineTo(-130, 15);
         ctx.stroke();
 
         // Right pulsing wing
-        const rightAlpha = 0.3 + Math.cos(this.t * 5) * 0.2;
+        const rightAlpha = 0.4 + Math.cos(this.t * 5) * 0.3;
         ctx.strokeStyle = '#FF2E93';
         ctx.shadowColor = '#FF2E93';
         ctx.globalAlpha = rightAlpha;
         ctx.beginPath();
-        ctx.moveTo(135, -20);
-        ctx.lineTo(155, 0);
-        ctx.lineTo(135, 20);
-        ctx.moveTo(125, -15);
-        ctx.lineTo(141, 0);
-        ctx.lineTo(125, 15);
+        ctx.moveTo(140, -20);
+        ctx.lineTo(160, 0);
+        ctx.lineTo(140, 20);
+        ctx.moveTo(130, -15);
+        ctx.lineTo(146, 0);
+        ctx.lineTo(130, 15);
         ctx.stroke();
         ctx.restore();
 
         // 4. Cool 3D title text
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.font = '900 54px "Outfit", sans-serif';
+        ctx.font = '900 58px "Outfit", sans-serif';
 
-        // CROWD 3D shadow layers
-        ctx.fillStyle = '#062B44';
-        ctx.fillText('CROWD', 0, -25);
-        ctx.fillStyle = '#095C7A';
-        ctx.fillText('CROWD', -2, -26);
-        ctx.fillStyle = '#0097B2';
-        ctx.fillText('CROWD', -4, -27);
+        // CROWD 3D shadow layers (deeper extrusion)
+        ctx.fillStyle = '#062B44'; ctx.fillText('CROWD', 0, -24);
+        ctx.fillStyle = '#073D55'; ctx.fillText('CROWD', -2, -25);
+        ctx.fillStyle = '#095C7A'; ctx.fillText('CROWD', -4, -26);
+        ctx.fillStyle = '#007A99'; ctx.fillText('CROWD', -6, -27);
 
-        // CROWD (Electric Cyan Front)
-        ctx.fillStyle = '#00E5FF';
-        ctx.shadowColor = 'rgba(0, 229, 255, 0.8)'; ctx.shadowBlur = 22;
-        ctx.fillText('CROWD', -5, -28);
+        // CROWD (Electric Cyan Front with Sweeping Highlight)
+        ctx.shadowColor = 'rgba(0, 229, 255, 0.9)'; ctx.shadowBlur = 25;
+        const cyGrad = ctx.createLinearGradient(-80, 0, 80, 0);
+        const cySweep = (this.t * 0.8) % 2;
+        cyGrad.addColorStop(0, '#00E5FF');
+        cyGrad.addColorStop(Math.min(1, Math.max(0, cySweep - 0.2)), '#00E5FF');
+        cyGrad.addColorStop(Math.min(1, Math.max(0, cySweep)), '#E5FFFF');
+        cyGrad.addColorStop(Math.min(1, Math.max(0, cySweep + 0.2)), '#00E5FF');
+        cyGrad.addColorStop(1, '#00BFFF');
+        ctx.fillStyle = cyGrad;
+        ctx.fillText('CROWD', -7, -28);
 
-        // RUSH 3D shadow layers
+        // RUSH 3D shadow layers (deeper extrusion)
         ctx.shadowBlur = 0;
-        ctx.fillStyle = '#440A28';
-        ctx.fillText('RUSH', 0, 31);
-        ctx.fillStyle = '#7A0E3C';
-        ctx.fillText('RUSH', -2, 30);
-        ctx.fillStyle = '#B21757';
-        ctx.fillText('RUSH', -4, 29);
+        ctx.fillStyle = '#440A28'; ctx.fillText('RUSH', 0, 32);
+        ctx.fillStyle = '#5A0B33'; ctx.fillText('RUSH', -2, 31);
+        ctx.fillStyle = '#7A0E3C'; ctx.fillText('RUSH', -4, 30);
+        ctx.fillStyle = '#99124D'; ctx.fillText('RUSH', -6, 29);
 
-        // RUSH (Vivid Pink Front)
-        ctx.fillStyle = '#FF2E93';
-        ctx.shadowColor = 'rgba(255, 46, 147, 0.8)'; ctx.shadowBlur = 22;
-        ctx.fillText('RUSH', -5, 28);
+        // RUSH (Vivid Pink Front with Sweeping Highlight)
+        ctx.shadowColor = 'rgba(255, 46, 147, 0.9)'; ctx.shadowBlur = 25;
+        const pkGrad = ctx.createLinearGradient(-80, 0, 80, 0);
+        const pkSweep = (this.t * 0.8 + 0.5) % 2;
+        pkGrad.addColorStop(0, '#FF2E93');
+        pkGrad.addColorStop(Math.min(1, Math.max(0, pkSweep - 0.2)), '#FF2E93');
+        pkGrad.addColorStop(Math.min(1, Math.max(0, pkSweep)), '#FFCCEA');
+        pkGrad.addColorStop(Math.min(1, Math.max(0, pkSweep + 0.2)), '#FF2E93');
+        pkGrad.addColorStop(1, '#D50066');
+        ctx.fillStyle = pkGrad;
+        ctx.fillText('RUSH', -7, 28);
 
-        // 5. Subtitle badge
+        // 5. Subtitle badge (Glassmorphic)
         ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
-        ctx.strokeStyle = 'rgba(0, 229, 255, 0.25)';
+        ctx.fillStyle = 'rgba(10, 15, 35, 0.7)';
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.4)';
         ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.roundRect(-120, 56, 240, 24, 12); ctx.fill(); ctx.stroke();
+        
+        ctx.shadowColor = 'rgba(0, 229, 255, 0.5)'; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.roundRect(-125, 58, 250, 26, 13); ctx.fill(); ctx.stroke();
 
+        ctx.shadowBlur = 0;
         ctx.fillStyle = '#E2E8F0';
-        ctx.font = 'bold 11px "Outfit", sans-serif';
-        ctx.fillText('Grow your crowd. Crush the fortress!', 0, 67);
+        ctx.font = 'bold 11.5px "Outfit", sans-serif';
+        ctx.fillText('Grow your crowd. Crush the fortress!', 0, 70);
 
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.globalAlpha = 1;
         ctx.restore();
     }
 
-    _drawLevelCard(ctx, w, h) {
-        const cy = h * 0.37;
-        const cardW = w - 32, cardH = 72;
+    _drawLevelCard(ctx, w, h, cy) {
+        const cardW = w - 32, cardH = 76;
 
         ctx.save();
 
+        // Ambient cyan glow
+        ctx.shadowColor = 'rgba(0, 180, 255, 0.4)';
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetY = 8;
+
         // Clean glass card
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.roundRect(16, cy - cardH/2, cardW, cardH, 16); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'rgba(15, 25, 45, 0.85)';
+        ctx.beginPath(); ctx.roundRect(16, cy - cardH/2, cardW, cardH, 18); ctx.fill();
+        
+        ctx.shadowColor = 'transparent';
+
+        // Inner glowing border
+        ctx.strokeStyle = 'rgba(0, 180, 255, 0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(16, cy - cardH/2, cardW, cardH, 18); ctx.stroke();
 
         // Level info
         const lvNum = this.game.shop.getCurrentLevel();
@@ -839,33 +978,39 @@ class UI {
         const lvName = li < LEVELS.length ? LEVELS[li].name : '—';
         const world = li < LEVELS.length ? LEVELS[li].world : 1;
 
-        ctx.fillStyle = '#38BDF8';
-        ctx.font = '800 11px "Outfit", sans-serif';
+        ctx.fillStyle = '#00DDFF';
+        ctx.font = '900 11px "Outfit", sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(`WORLD ${world}  ·  LEVEL ${lvNum}`, w / 2, cy - 16);
+        ctx.fillText(`WORLD ${world}  ·  LEVEL ${lvNum}`, w / 2, cy - 18);
 
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '900 20px "Outfit", sans-serif';
+        ctx.font = '900 22px "Outfit", sans-serif';
+        ctx.shadowColor = 'rgba(255,255,255,0.2)'; ctx.shadowBlur = 10;
         ctx.fillText(lvName, w / 2, cy + 6);
+        ctx.shadowBlur = 0;
 
         // Stars
         const best = this.game.shop.getBestForLevel ? this.game.shop.getBestForLevel(lvNum) : null;
         const stars = best ? (best.crowd > 50 ? 3 : best.crowd > 20 ? 2 : 1) : 0;
-        ctx.font = '14px sans-serif';
-        ctx.shadowColor = 'rgba(251, 191, 36, 0.5)'; ctx.shadowBlur = 8;
-        ctx.fillText('⭐'.repeat(stars) + '☆'.repeat(3 - stars), w / 2, cy + 28);
+        ctx.font = '16px sans-serif';
+        ctx.shadowColor = 'rgba(251, 191, 36, 0.6)'; ctx.shadowBlur = 12;
+        ctx.fillText('⭐'.repeat(stars) + '☆'.repeat(3 - stars), w / 2, cy + 30);
 
+        // Reset ALL shadow state before restore
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
         ctx.restore();
 
         // Nav arrows
         if (this.game.shop.getCurrentLevel() > 1)
-            this._btn(ctx, 46, cy, 36, 36, '◀', '#334466', '#445577', 'prev');
+            this._btn(ctx, 46, cy, 38, 38, '◀', '#1E3A5F', '#2A5288', 'prev');
         if (this.game.shop.getCurrentLevel() < this.game.shop.getHighestLevel())
-            this._btn(ctx, w - 46, cy, 36, 36, '▶', '#334466', '#445577', 'next');
+            this._btn(ctx, w - 46, cy, 38, 38, '▶', '#1E3A5F', '#2A5288', 'next');
     }
 
-    _drawMenuBottomRow(ctx, w, h) {
-        const by = h * 0.64;
+    _drawMenuBottomRow(ctx, w, h, by) {
         const items = [
             { id: 'worldMap', icon: '🗺️', label: 'World', color: '#1E5F8E', light: '#2277BB' },
             { id: 'shop',     icon: '🛒', label: 'Shop',  color: '#5B3FA0', light: '#7B5FCC' },
@@ -883,72 +1028,98 @@ class UI {
 
     _drawIconTab(ctx, x, y, w, h, icon, label, c1, c2, id) {
         ctx.save();
-        const r = 14;
+        const r = 16;
 
-        // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.beginPath(); ctx.roundRect(x - w/2 + 1, y - h/2 + 4, w, h, r); ctx.fill();
+        // Large soft shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.shadowColor = c1;
+        ctx.shadowBlur = 15;
+        ctx.beginPath(); ctx.roundRect(x - w/2, y - h/2 + 6, w, h, r); ctx.fill();
+        ctx.shadowBlur = 0;
 
-        // Body
+        // Darker Base
+        ctx.fillStyle = c1;
+        ctx.beginPath(); ctx.roundRect(x - w/2, y - h/2 + 4, w, h, r); ctx.fill();
+
+        // Vibrant Body Gradient
         const g = ctx.createLinearGradient(x, y - h/2, x, y + h/2);
-        g.addColorStop(0, c2); g.addColorStop(1, c1);
+        g.addColorStop(0, c2); 
+        g.addColorStop(1, c1);
         ctx.fillStyle = g;
         ctx.beginPath(); ctx.roundRect(x - w/2, y - h/2, w, h, r); ctx.fill();
 
-        // Shine
-        ctx.fillStyle = 'rgba(255,255,255,0.18)';
-        ctx.beginPath(); ctx.roundRect(x - w/2 + 2, y - h/2 + 2, w - 4, h * 0.4, r); ctx.fill();
+        // Premium sweeping shine
+        const shineG = ctx.createLinearGradient(x - w/2, y - h/2, x + w/2, y + h/2);
+        const sweep = (this.t * 0.4 + (x * 0.005)) % 2;
+        const pos = sweep - 0.4;
+        const p0 = Math.max(0, Math.min(1, pos - 0.2));
+        const p1 = Math.max(0, Math.min(1, pos));
+        const p2 = Math.max(0, Math.min(1, pos + 0.2));
+        shineG.addColorStop(p0, 'rgba(255,255,255,0)');
+        shineG.addColorStop(p1, 'rgba(255,255,255,0.3)');
+        shineG.addColorStop(p2, 'rgba(255,255,255,0)');
+        ctx.fillStyle = shineG;
+        ctx.beginPath(); ctx.roundRect(x - w/2 + 2, y - h/2 + 2, w - 4, h * 0.45, r - 2); ctx.fill();
 
         // Icon
-        ctx.font = '22px sans-serif';
+        ctx.font = '24px sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(icon, x, y - 8);
 
         // Label
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.font = 'bold 10px "Outfit", sans-serif';
-        ctx.fillText(label, x, y + 14);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 11px "Outfit", sans-serif';
+        ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+        ctx.fillText(label, x, y + 16);
 
         ctx.restore();
         if (id) this._regBtn(x - w/2, y - h/2, w, h, id);
     }
 
-    _drawMenuCoinBadge(ctx, w, h) {
+    _drawMenuCoinBadge(ctx, w, by) {
         const coins = this.game.shop.getCoins();
-        const bw = 140, bh = 36;
-        const bx = (w - bw) / 2, by = h * 0.78;
+        const bw = 150, bh = 40;
+        const bx = (w - bw) / 2;
 
         ctx.save();
-        ctx.fillStyle = 'rgba(0,0,0,0.4)';
-        ctx.beginPath(); ctx.roundRect(bx + 2, by + 3, bw, bh, bh / 2); ctx.fill();
+        // Drop shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.shadowColor = 'rgba(255, 215, 0, 0.2)';
+        ctx.shadowBlur = 15;
+        ctx.beginPath(); ctx.roundRect(bx + 2, by + 4, bw, bh, bh / 2); ctx.fill();
+        ctx.shadowBlur = 0;
 
-        const g = ctx.createLinearGradient(bx, by, bx + bw, by);
-        g.addColorStop(0, '#1A3A1A');
-        g.addColorStop(1, '#2A4A2A');
+        // Rich gold-green gradient background
+        const g = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
+        g.addColorStop(0, '#2A4A2A');
+        g.addColorStop(1, '#0D1A0D');
         ctx.fillStyle = g;
         ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, bh / 2); ctx.fill();
 
-        // Coin icon
+        // Glowing border
+        ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, bh / 2); ctx.stroke();
+
+        // 3D Coin icon
+        const cx = bx + 24;
+        const cy = by + bh / 2;
+        ctx.fillStyle = '#B8860B';
+        ctx.beginPath(); ctx.arc(cx, cy + 2, 12, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#FFD700';
-        ctx.beginPath(); ctx.arc(bx + 22, by + bh / 2, 12, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#FFC200';
-        ctx.beginPath(); ctx.arc(bx + 19, by + bh / 2 - 2, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#FFE066';
-        ctx.font = 'bold 10px "Outfit", sans-serif';
+        ctx.font = '900 13px "Outfit", sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('$', bx + 22, by + bh / 2);
+        ctx.fillText('$', cx, cy + 1);
 
+        // Coin value
         ctx.fillStyle = '#FFD700';
-        ctx.font = 'bold 16px "Outfit", sans-serif';
+        ctx.font = '900 18px "Outfit", sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(Utils.formatNumber(coins), bx + bw / 2 + 8, by + bh / 2);
+        ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 4;
+        ctx.fillText(Utils.formatNumber(coins), bx + bw / 2 + 10, cy + 1);
         ctx.restore();
-
-        // Version text
-        ctx.fillStyle = 'rgba(255,255,255,0.2)';
-        ctx.font = '10px "Outfit", sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('Crowd Rush v2.0 — 10 Levels', w / 2, h - 16);
     }
 
     // ============================================================
@@ -1073,7 +1244,7 @@ class UI {
         const s = this.game.settings;
         let yp = 72;
 
-        const row = (label, val, id1, lbl1, id2, lbl2) => {
+        const row = (label, val, id1, lbl1, id2, lbl2, isToggle = false, toggleState = false) => {
             ctx.fillStyle = 'rgba(255,255,255,0.05)';
             ctx.strokeStyle = 'rgba(255,255,255,0.08)';
             ctx.lineWidth = 1;
@@ -1087,7 +1258,30 @@ class UI {
             ctx.font = '11px "Outfit", sans-serif';
             ctx.fillText(val, 26, yp + 37);
 
-            if (id2) {
+            if (isToggle) {
+                // Render a premium sliding switch toggle
+                const tx = w - 64, ty = yp + 14, tw = 46, th = 24, tr = th / 2;
+                ctx.save();
+                ctx.fillStyle = toggleState ? '#10B981' : '#374151'; // Green active, grey inactive
+                ctx.beginPath(); ctx.roundRect(tx, ty, tw, th, tr); ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Slider knob
+                const knobR = (th - 4) / 2;
+                const knobX = toggleState ? (tx + tw - knobR - 2) : (tx + knobR + 2);
+                const knobY = ty + th / 2;
+
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                ctx.shadowBlur = 4;
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath(); ctx.arc(knobX, knobY, knobR, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+
+                // Register button hit box for toggle action
+                this._regBtn(tx, ty, tw, th, id1);
+            } else if (id2) {
                 this._btn(ctx, w - 95, yp + 26, 42, 26, lbl1, '#00AA55', '#00CC66', id1);
                 this._btn(ctx, w - 46, yp + 26, 42, 26, lbl2, '#334466', '#445577', id2);
             } else if (id1) {
@@ -1095,16 +1289,17 @@ class UI {
             }
 
             // Full row click target registration
-            if (id1) this._regBtn(14, yp, w - 28, 52, id1);
+            if (id1 && !isToggle) this._regBtn(14, yp, w - 28, 52, id1);
 
             yp += 62;
         };
 
-        row('🔊 Sound', s.soundEnabled ? 'ON' : 'OFF', 'set_snd_toggle', s.soundEnabled ? 'Mute' : 'On', null, null);
-        row('🎮 Sensitivity', `${s.sensitivity.toFixed(1)}x`, 'set_sens_up', '+', 'set_sens_dn', '−');
-        row('🖥️ Graphics', s.graphicsQuality.toUpperCase(), 'set_gfx_toggle', s.graphicsQuality === 'high' ? 'Low' : 'High', null, null);
-        row('📋 Privacy Policy', 'Play Store Compliant', 'set_privacy', 'View', null, null);
-        row('📜 Terms & Conditions', 'User Agreement', 'set_terms', 'View', null, null);
+        row('🔊 Sound', s.soundEnabled ? 'ON' : 'OFF', 'set_snd_toggle', s.soundEnabled ? 'Mute' : 'On', null, null, true, s.soundEnabled);
+        row('🎮 Sensitivity', `${s.sensitivity.toFixed(1)}x`, 'set_sens_up', '+', 'set_sens_dn', '−', false, false);
+        row('🖥️ Graphics', s.graphicsQuality.toUpperCase(), 'set_gfx_toggle', s.graphicsQuality === 'high' ? 'Low' : 'High', null, null, true, s.graphicsQuality === 'high');
+        row('📋 Privacy Policy', 'Play Store Compliant', 'set_privacy', 'View', null, null, false, false);
+        row('📜 Terms & Conditions', 'User Agreement', 'set_terms', 'View', null, null, false, false);
+        row('⭐ Rate & Review', 'Support the Game!', 'set_rate', 'Rate', null, null, false, false);
 
         // Reset row
         ctx.fillStyle = 'rgba(255,50,50,0.08)';
@@ -1428,13 +1623,22 @@ class UI {
             ctx.fillText('⭐'.repeat(stars) + '☆'.repeat(3 - stars), w / 2, cardY + cardH - 24);
         }
 
+        // Display Daily Reward text if present
+        if (this.game.dailyRewardText) {
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 12px "Outfit", sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(this.game.dailyRewardText, w / 2, h * 0.58);
+        }
+
         if (!this.rewarded2x) {
             this._btn(ctx, w / 2, h * 0.65, 180, 44, '📺 2x Coins (Ad)', '#DD7700', '#FF9900', 'ad_2x');
         } else {
             this._btn(ctx, w / 2, h * 0.65, 180, 44, '✅ Coins Doubled!', '#555', '#777', 'none');
         }
 
-        if (this.game.shop.getCurrentLevel() < LEVELS.length) {
+        const isDaily = this.game.currentLevel && this.game.currentLevel.isDaily;
+        if (!isDaily && this.game.shop.getCurrentLevel() < LEVELS.length) {
             this._btn(ctx, w / 2, h * 0.76, 200, 52, '▶  Next Level', '#00AA55', '#00CC66', 'nextLevelR');
         }
         this._btn(ctx, w / 2, h * 0.86, 150, 40, '🏠  Menu', '#334466', '#445577', 'menuR');
@@ -1450,47 +1654,191 @@ class UI {
         bg.addColorStop(0, '#0A1628'); bg.addColorStop(1, '#150A28');
         ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
 
-        this._drawScreenHeader(ctx, w, '🛒 SHOP', '#C084FC');
+        this._drawScreenHeader(ctx, w, '\ud83d\udecd\ufe0f SHOP', '#C084FC');
 
-        // Coin display under header
+        // Coin badge
+        ctx.save();
+        const cg = ctx.createLinearGradient(w/2 - 80, 52, w/2 + 80, 52);
+        cg.addColorStop(0, '#1A3A1A'); cg.addColorStop(1, '#2A4A2A');
+        ctx.fillStyle = cg;
+        ctx.beginPath(); ctx.roundRect(w/2 - 85, 44, 170, 24, 12); ctx.fill();
         ctx.fillStyle = '#FFD700';
-        ctx.font = 'bold 16px "Outfit", sans-serif';
+        ctx.font = 'bold 13px "Outfit", sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(`🪙 ${this.game.shop.getCoins()}`, w / 2, 58);
-        
-        // Add Free Coins button
-        this._btn(ctx, w - 50, 58, 80, 26, '📺 +500', '#DD7700', '#FF9900', 'ad_shop');
+        ctx.fillText(`\ud83e\ude99 ${Math.floor(this.game.shop.getCoins()).toLocaleString()} coins`, w/2, 56);
+        ctx.restore();
 
-        // Section: Upgrades
-        this._drawSectionLabel(ctx, w, 85, '⚡ UPGRADES', '#00DDFF');
+        // Free coins ad button
+        this._btn(ctx, w - 46, 56, 74, 24, '\ud83d\udcfa +500', '#DD7700', '#FF9900', 'ad_shop');
 
-        const ups = [
-            { key: 'speed',         icon: '⚡', name: 'Run Speed',      desc: 'Move faster down the lane' },
-            { key: 'startCrowd',    icon: '👥', name: 'Start Crowd',    desc: 'More units at start (+15)' },
-            { key: 'gateMagnet',    icon: '🧲', name: 'Gate Magnet',    desc: 'Auto-steer to best gate' },
-            { key: 'feverDuration', icon: '🔥', name: 'Fever Duration', desc: 'Extends Hyper Rush duration' },
-            { key: 'coinMagnet',    icon: '💎', name: 'Coin Magnet',    desc: 'Attracts bonus rewards' },
+        // Tab row
+        const tabY = 80;
+        const tabW = (w - 32) / 2;
+        const tabs = [
+            { id: 'shopTab_upgrades', label: '\u26a1 Upgrades', active: this._shopTab === 'upgrades' },
+            { id: 'shopTab_skins',    label: '\ud83c\udfa8 Skins',    active: this._shopTab === 'skins'    },
         ];
-        let yp = 100;
-        for (const u of ups) {
-            const lv = this.game.shop.getUpgradeLevel(u.key);
-            const cost = this.game.shop.getUpgradeCost(u.key);
-            this._drawUpgradeRow(ctx, w, yp, u, lv, cost);
-            yp += 58;
+        tabs.forEach((tab, i) => {
+            const tx = 16 + i * (tabW + 4) + tabW / 2;
+            ctx.save();
+            if (tab.active) {
+                const tg = ctx.createLinearGradient(tx - tabW/2, tabY, tx + tabW/2, tabY);
+                tg.addColorStop(0, '#2563EB'); tg.addColorStop(1, '#7C3AED');
+                ctx.fillStyle = tg;
+                ctx.shadowColor = '#7C3AED'; ctx.shadowBlur = 8;
+            } else {
+                ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            }
+            ctx.strokeStyle = tab.active ? 'rgba(124,58,237,0.6)' : 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.roundRect(tx - tabW/2, tabY - 14, tabW, 30, 8); ctx.fill(); ctx.stroke();
+            ctx.restore();
+            ctx.fillStyle = tab.active ? '#FFF' : 'rgba(255,255,255,0.5)';
+            ctx.font = `bold ${tab.active ? 12 : 11}px "Outfit", sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(tab.label, tx, tabY);
+            this._regBtn(tx - tabW/2, tabY - 14, tabW, 30, tab.id);
+        });
+
+        // Clip content area
+        const contentY = 104;
+        const contentH = h - contentY - 52;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, contentY, w, contentH);
+        ctx.clip();
+
+        if (this._shopTab === 'upgrades') {
+            // --- UPGRADES TAB ---
+            const ups = [
+                { key: 'speed',         icon: '\u26a1', name: 'Run Speed',      desc: 'Move faster down the lane' },
+                { key: 'startCrowd',    icon: '\ud83d\udc65', name: 'Start Crowd',    desc: 'More soldiers at start (+15)' },
+                { key: 'gateMagnet',    icon: '\ud83e\uddcf', name: 'Gate Magnet',    desc: 'Auto-steer to best gate' },
+                { key: 'feverDuration', icon: '\ud83d\udd25', name: 'Fever Duration', desc: 'Extends Hyper Rush duration' },
+                { key: 'coinMagnet',    icon: '\ud83d\udc8e', name: 'Coin Magnet',    desc: 'Attracts bonus rewards' },
+            ];
+            let yp = contentY + 8;
+            for (const u of ups) {
+                const lv = this.game.shop.getUpgradeLevel(u.key);
+                const cost = this.game.shop.getUpgradeCost(u.key);
+                this._drawUpgradeRow(ctx, w, yp, u, lv, cost);
+                yp += 62;
+            }
+
+        } else {
+            // --- SKINS TAB ---
+            const skinKeys = Object.keys(CROWD_SKINS);
+            const totalH = skinKeys.length * 72;
+            const maxScroll = Math.max(0, totalH - contentH + 8);
+            this._shopScrollY = Math.max(0, Math.min(this._shopScrollY, maxScroll));
+
+            let yp = contentY - this._shopScrollY + 8;
+            for (const k of skinKeys) {
+                const skin = CROWD_SKINS[k];
+                const owned = this.game.shop.isSkinUnlocked(k);
+                const sel   = this.game.shop.getCurrentSkin() === k;
+                this._drawSkinCard(ctx, w, yp, k, skin, owned, sel);
+                yp += 72;
+            }
+
+            // Scroll indicator
+            if (maxScroll > 0) {
+                const trackH = contentH - 8;
+                const thumbH = Math.max(30, trackH * (contentH / totalH));
+                const thumbY = contentY + 4 + (this._shopScrollY / maxScroll) * (trackH - thumbH);
+                ctx.fillStyle = 'rgba(124,58,237,0.5)';
+                ctx.beginPath(); ctx.roundRect(w - 7, thumbY, 4, thumbH, 2); ctx.fill();
+            }
         }
 
-        // Section: Skins
-        this._drawSectionLabel(ctx, w, yp + 8, '🎨 SKINS', '#FF69B4');
-        yp += 26;
+        ctx.restore(); // un-clip
 
-        for (const [k, skin] of Object.entries(CROWD_SKINS)) {
-            const owned = this.game.shop.isSkinUnlocked(k);
-            const sel = this.game.shop.getCurrentSkin() === k;
-            this._drawSkinRow(ctx, w, yp, k, skin, owned, sel);
-            yp += 48;
+        this._btn(ctx, w / 2, h - 28, 130, 36, '\u2190 Back', '#334466', '#445577', 'shopBack');
+    }
+
+    _drawSkinCard(ctx, w, y, k, skin, owned, sel) {
+        const cardH = 66;
+        ctx.save();
+
+        // Card background with glow for selected
+        if (sel) {
+            ctx.shadowColor = '#00B4FF'; ctx.shadowBlur = 14;
+        }
+        // Premium tiers
+        const isPremium = skin.cost >= 75000;
+        const isLegendary = skin.cost >= 150000;
+        let cardBg;
+        if (isLegendary) {
+            cardBg = ctx.createLinearGradient(14, y, w - 14, y + cardH);
+            cardBg.addColorStop(0, '#1a0030'); cardBg.addColorStop(0.5, '#2d0050'); cardBg.addColorStop(1, '#0d0015');
+        } else if (isPremium) {
+            cardBg = ctx.createLinearGradient(14, y, w - 14, y + cardH);
+            cardBg.addColorStop(0, '#0d1a00'); cardBg.addColorStop(0.5, '#1a2800'); cardBg.addColorStop(1, '#1a1a2e');
+        } else {
+            cardBg = sel ? 'rgba(0,180,255,0.12)' : 'rgba(255,255,255,0.04)';
+        }
+        ctx.fillStyle = cardBg;
+        let borderColor;
+        if (isLegendary)    borderColor = sel ? 'rgba(170,0,255,0.9)' : 'rgba(170,0,255,0.4)';
+        else if (isPremium) borderColor = sel ? 'rgba(255,80,0,0.8)'  : 'rgba(255,80,0,0.3)';
+        else                borderColor = sel ? 'rgba(0,200,255,0.6)'  : 'rgba(255,255,255,0.08)';
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = sel ? 1.5 : 1;
+        ctx.beginPath(); ctx.roundRect(14, y + 2, w - 28, cardH, 12); ctx.fill(); ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Tier badge
+        if (isLegendary) {
+            ctx.fillStyle = '#CC00FF'; ctx.font = 'bold 8px "Outfit", sans-serif';
+            ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+            ctx.fillText('LEGENDARY', 22, y + 6);
+        } else if (isPremium) {
+            ctx.fillStyle = '#FF6600'; ctx.font = 'bold 8px "Outfit", sans-serif';
+            ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+            ctx.fillText('PREMIUM', 22, y + 6);
         }
 
-        this._btn(ctx, w / 2, h - 34, 130, 34, '← Back', '#334466', '#445577', 'shopBack');
+        // Skin color preview swatch
+        if (skin.body === 'rainbow') {
+            const rg = ctx.createLinearGradient(28, y + 16, 52, y + 52);
+            rg.addColorStop(0, '#F00'); rg.addColorStop(0.33, '#0F0'); rg.addColorStop(0.66, '#00F'); rg.addColorStop(1, '#F0F');
+            ctx.fillStyle = rg;
+        } else {
+            ctx.fillStyle = skin.body;
+        }
+        ctx.beginPath(); ctx.arc(40, y + cardH/2 + 2, 16, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = isLegendary ? 'rgba(204,0,255,0.8)' : isPremium ? 'rgba(255,102,0,0.8)' : 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(40, y + cardH/2 + 2, 16, 0, Math.PI * 2); ctx.stroke();
+
+        // Skin name
+        ctx.fillStyle = sel ? '#00DDFF' : isLegendary ? '#CC00FF' : isPremium ? '#FF8800' : '#FFF';
+        ctx.font = `bold 12px "Outfit", sans-serif`;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(skin.name, 64, y + cardH/2 - 4);
+
+        // Cost hint for locked
+        if (!owned) {
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.font = '9px "Outfit", sans-serif';
+            ctx.fillText(`\ud83e\ude99 ${skin.cost.toLocaleString()} coins`, 64, y + cardH/2 + 12);
+        }
+
+        // Action button (right side)
+        if (sel) {
+            ctx.fillStyle = '#00DDFF'; ctx.font = 'bold 9px "Outfit", sans-serif';
+            ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+            ctx.fillText('\u2714 EQUIPPED', w - 20, y + cardH/2 + 2);
+        } else if (owned) {
+            this._btn(ctx, w - 46, y + cardH/2 + 2, 58, 26, 'Equip', '#007799', '#0099CC', `sel_${k}`);
+        } else {
+            const ca = this.game.shop.getCoins() >= skin.cost;
+            const btnColor = isLegendary ? (ca ? '#6600AA' : '#222') : isPremium ? (ca ? '#884400' : '#222') : (ca ? '#886600' : '#333');
+            const btnLight  = isLegendary ? (ca ? '#9900FF' : '#333') : isPremium ? (ca ? '#CC6600' : '#444') : (ca ? '#CCAA00' : '#444');
+            this._btn(ctx, w - 50, y + cardH/2 + 2, 72, 26, `\ud83e\ude99 ${skin.cost >= 1000 ? (skin.cost/1000).toFixed(0)+'K' : skin.cost}`,
+                btnColor, btnLight, `buys_${k}`);
+        }
+        ctx.restore();
     }
 
     _drawSectionLabel(ctx, w, y, text, color) {
@@ -1526,10 +1874,18 @@ class UI {
         ctx.font = '10px "Outfit", sans-serif';
         ctx.fillText(u.desc, 62, y + 35);
 
-        // Level pip dots
+        // Glowing level pip dots
         for (let i = 0; i < 3; i++) {
-            ctx.fillStyle = i < lv ? '#00FF88' : 'rgba(255,255,255,0.15)';
+            ctx.save();
+            if (i < lv) {
+                ctx.shadowColor = '#00FF88';
+                ctx.shadowBlur = 6;
+                ctx.fillStyle = '#00FF88';
+            } else {
+                ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            }
             ctx.beginPath(); ctx.arc(62 + i * 13, y + 46, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
         }
 
         // Buy button
@@ -1548,10 +1904,18 @@ class UI {
 
     _drawSkinRow(ctx, w, y, k, skin, owned, sel) {
         ctx.save();
+        if (sel) {
+            ctx.shadowColor = '#00B4FF';
+            ctx.shadowBlur = 8;
+        }
         ctx.fillStyle = sel ? 'rgba(0,180,255,0.12)' : 'rgba(255,255,255,0.04)';
-        ctx.strokeStyle = sel ? 'rgba(0,200,255,0.5)' : 'rgba(255,255,255,0.07)';
+        ctx.strokeStyle = sel ? 'rgba(0,200,255,0.6)' : 'rgba(255,255,255,0.08)';
         ctx.lineWidth = sel ? 1.5 : 1;
         ctx.beginPath(); ctx.roundRect(14, y, w - 28, 42, 9); ctx.fill(); ctx.stroke();
+        if (sel) {
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+        }
 
         // Skin color circle
         if (skin.body === 'rainbow') {
@@ -1615,20 +1979,32 @@ class UI {
         const w = GC.W, h = GC.H, btns = [];
         if (this.game.state === 'MENU') {
             if (this.showingShop) {
-                btns.push({ x: w/2-65, y: h-51, w: 130, h: 34, id: 'shopBack' });
-                btns.push({ x: w-90, y: 45, w: 80, h: 26, id: 'ad_shop' });
-                const ups = ['speed','startCrowd','gateMagnet'];
-                let yp = 100;
-                for (const k of ups) {
-                    if (this.game.shop.getUpgradeCost(k)) btns.push({ x: w-89, y: yp+12, w: 70, h: 28, id: `buy_${k}` });
-                    yp += 58;
-                }
-                yp += 26;
-                for (const k of Object.keys(CROWD_SKINS)) {
-                    const owned = this.game.shop.isSkinUnlocked(k);
-                    const sel = this.game.shop.getCurrentSkin() === k;
-                    if (!sel) btns.push({ x: w-81, y: yp+9, w: 70, h: 24, id: owned ? `sel_${k}` : `buys_${k}` });
-                    yp += 48;
+                btns.push({ x: w/2-65, y: h-46, w: 130, h: 36, id: 'shopBack' });
+                btns.push({ x: w-83, y: 44, w: 74, h: 24, id: 'ad_shop' });
+                // Tab buttons (always present)
+                const tabW = (w - 32) / 2;
+                btns.push({ x: 16,         y: 66, w: tabW, h: 30, id: 'shopTab_upgrades' });
+                btns.push({ x: 16+tabW+4,  y: 66, w: tabW, h: 30, id: 'shopTab_skins' });
+
+                if (this._shopTab === 'upgrades') {
+                    const ups = ['speed','startCrowd','gateMagnet','feverDuration','coinMagnet'];
+                    let yp = 112;
+                    for (const k of ups) {
+                        if (this.game.shop.getUpgradeCost(k)) btns.push({ x: w-89, y: yp+16, w: 70, h: 28, id: `buy_${k}` });
+                        yp += 62;
+                    }
+                } else {
+                    const contentY = 104, contentH = h - contentY - 52;
+                    let yp = contentY - this._shopScrollY + 8;
+                    for (const k of Object.keys(CROWD_SKINS)) {
+                        const owned = this.game.shop.isSkinUnlocked(k);
+                        const sel   = this.game.shop.getCurrentSkin() === k;
+                        const cardMid = yp + 33 + 2;
+                        if (!sel && cardMid > contentY && cardMid < contentY + contentH) {
+                            btns.push({ x: w - 86, y: cardMid - 13, w: 72, h: 26, id: owned ? `sel_${k}` : `buys_${k}` });
+                        }
+                        yp += 72;
+                    }
                 }
             } else if (this.showingWorldMap) {
                 btns.push({ x: w/2-65, y: h-51, w: 130, h: 34, id: 'wmBack' });
@@ -1656,7 +2032,8 @@ class UI {
                 btns.push({ x: 14, y: 196, w: w - 28, h: 52, id: 'set_gfx_toggle' });
                 btns.push({ x: 14, y: 258, w: w - 28, h: 52, id: 'set_privacy' });
                 btns.push({ x: 14, y: 320, w: w - 28, h: 52, id: 'set_terms' });
-                btns.push({ x: 14, y: 382, w: w - 28, h: 52, id: 'set_reset' });
+                btns.push({ x: 14, y: 382, w: w - 28, h: 52, id: 'set_rate' });
+                btns.push({ x: 14, y: 444, w: w - 28, h: 52, id: 'set_reset' });
             } else if (this.showingLeaderboard) {
                 btns.push({ x: w/2-65, y: h-51, w: 130, h: 34, id: 'lbBack' });
             } else {
@@ -1687,6 +2064,9 @@ class UI {
         if (['PLAYING','CLASH','FORTRESS_ATTACK'].includes(this.game.state)) {
             btns.push({ x: 6, y: 0, w: 40, h: 40, id: 'exitToMenu' });
         }
+        if (this.game.state === 'STORY_INTRO') {
+            btns.push({ x: w/2 - 90, y: h * 0.76 - 25, w: 180, h: 50, id: 'startStory' });
+        }
         return btns;
     }
 
@@ -1702,6 +2082,12 @@ class UI {
     _onBtn(id) {
         const s = this.game.settings;
         switch(id) {
+            case 'shopTab_upgrades': this._shopTab = 'upgrades'; break;
+            case 'shopTab_skins':    this._shopTab = 'skins';    break;
+            case 'daily_level': {
+                const dailyLevel = this.game.generateDailyLevel();
+                this.game.startLevel(dailyLevel);
+            } break;
             case 'play': this.game.startLevel(this.game.shop.getCurrentLevel()); break;
             case 'shop': this.showingShop = true; this.showingWorldMap = false; this.showingSettings = false; this.showingLeaderboard = false; this.showingPrivacyPolicy = false; this.showingTerms = false; break;
             case 'shopBack': this.showingShop = false; break;
@@ -1715,6 +2101,15 @@ class UI {
             case 'privacyBack': this.showingPrivacyPolicy = false; break;
             case 'set_terms': this.showingTerms = true; break;
             case 'termsBack': this.showingTerms = false; break;
+            case 'set_rate':
+                if (typeof Android !== 'undefined' && Android.openPlayStore) {
+                    try { Android.openPlayStore(); } catch(e) {
+                        window.open('https://play.google.com/store/apps/details?id=com.ravidandaiya.crowdrush', '_blank');
+                    }
+                } else {
+                    window.open('https://play.google.com/store/apps/details?id=com.ravidandaiya.crowdrush', '_blank');
+                }
+                break;
             case 'prev': { const c = this.game.shop.getCurrentLevel(); if (c>1) this.game.shop.setCurrentLevel(c-1); } break;
             case 'next': { const c = this.game.shop.getCurrentLevel(); if (c<this.game.shop.getHighestLevel()) this.game.shop.setCurrentLevel(c+1); } break;
             case 'retry': this.game.startLevel(this.game.shop.getCurrentLevel()); break;
@@ -1743,6 +2138,7 @@ class UI {
                 const n = this.game.shop.getCurrentLevel() + 1;
                 if (n <= LEVELS.length) { this.game.shop.setCurrentLevel(n); this.game.startLevel(n); }
             } break;
+            case 'startStory': this.game.state = 'PLAYING'; break;
             case 'set_snd_toggle': s.soundEnabled = !s.soundEnabled; if (this.game.sound) this.game.sound.enabled = s.soundEnabled; break;
             case 'set_sens_up': s.sensitivity = Math.min(3.0, s.sensitivity + 0.2); break;
             case 'set_sens_dn': s.sensitivity = Math.max(0.2, s.sensitivity - 0.2); break;
@@ -1759,5 +2155,73 @@ class UI {
                 else if (id.startsWith('sel_'))  this.game.shop.selectSkin(id.slice(4));
                 else if (id.startsWith('buy_'))  this.game.shop.buyUpgrade(id.slice(4));
         }
+    }
+
+    drawStoryIntro(ctx) {
+        this.activeButtons = [];
+        const w = GC.W, h = GC.H;
+
+        // Dark tint overlay
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        ctx.fillRect(0, 0, w, h);
+
+        // Header Title
+        ctx.fillStyle = '#FFC800';
+        ctx.font = 'bold 22px "Outfit", sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#FF8800'; ctx.shadowBlur = 10;
+        ctx.fillText('👑 THE PRINCE\'S QUEST 👑', w / 2, h * 0.20);
+        ctx.shadowBlur = 0;
+
+        // Narrative box with custom glow shadow border
+        const boxX = 24, boxY = h * 0.26, boxW = w - 48, boxH = h * 0.40;
+        ctx.save();
+        ctx.shadowColor = '#00E5FF';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = 'rgba(10, 20, 45, 0.9)';
+        ctx.strokeStyle = 'rgba(0, 200, 255, 0.5)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.roundRect(boxX, boxY, boxW, boxH, 16); ctx.fill(); ctx.stroke();
+        ctx.restore();
+
+        // Story paragraphs
+        const lines = [
+            "Prince Arthur's kingdom is in peril!",
+            "The evil Obsidian Emperor has stormed the",
+            "castle and kidnapped Princess Aurelia,",
+            "locking her deep inside the Volcano Core.",
+            "",
+            "As the Prince, you must lead your loyal",
+            "soldiers through dangerous paths,",
+            "multiply your forces through magic gates,",
+            "and crush the Emperor's dark fortress!",
+            "",
+            "Lead the charge and rescue the Princess!"
+        ];
+
+        let lineY = boxY + 22;
+        ctx.fillStyle = '#E2E8F0';
+        ctx.textAlign = 'center';
+        for (const line of lines) {
+            if (line === "") {
+                lineY += 12;
+                continue;
+            }
+            if (line.includes("Prince Arthur") || line.includes("Princess Aurelia")) {
+                ctx.fillStyle = '#00E5FF';
+                ctx.font = 'bold 13px "Outfit", sans-serif';
+            } else if (line.includes("Obsidian Emperor")) {
+                ctx.fillStyle = '#FF4466';
+                ctx.font = 'bold 13px "Outfit", sans-serif';
+            } else {
+                ctx.fillStyle = '#AAC8EE';
+                ctx.font = '12px "Outfit", sans-serif';
+            }
+            ctx.fillText(line, w / 2, lineY);
+            lineY += 19;
+        }
+
+        // Play Button
+        this._btn(ctx, w / 2, h * 0.76, 180, 50, '⚔️ START QUEST', '#00AA55', '#00EE77', 'startStory');
     }
 }

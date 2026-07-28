@@ -47,6 +47,12 @@ html, body {
         0 8px 40px rgba(0,0,0,0.7);
 }
 
+/* Native-feeling mobile app screens should be borderless */
+body.mobile-native #game-container canvas {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
 #uiCanvas {
     z-index: 2;
     pointer-events: none; /* Let events pass to the container, we handle them in JS */
@@ -107,7 +113,9 @@ html, body {
     border-radius: 4px;
     overflow: hidden;
     margin-top: 28px;
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.06);
+    box-shadow: 
+        0 0 0 1px rgba(255,255,255,0.06),
+        0 0 16px rgba(0, 180, 255, 0.22);
 }
 
 .loading-bar {

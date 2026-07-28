@@ -17,7 +17,18 @@ class Fortress {
     }
 
     init(level) {
-        this.phases = level.fortress.phases || [{ hp: level.fortress.hp, label: 'Fortress' }];
+        if (this.princessMesh) {
+            this.game.scene.remove(this.princessMesh);
+            this.princessMesh.traverse(child => {
+                if (child.isMesh) {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                }
+            });
+            this.princessMesh = null;
+        }
+        // Deep copy the phases to avoid mutating the static LEVELS config across games
+        this.phases = (level.fortress.phases || [{ hp: level.fortress.hp, label: 'Fortress' }]).map(p => ({ ...p }));
         this.phaseIndex = 0;
         this.currentPhase = this.phases[0];
         this.maxHP = this.currentPhase.hp;
@@ -26,6 +37,7 @@ class Fortress {
         this.worldY = level.laneLength;
         this.state = 'waiting';
         this.damageDealt = 0; this.shake = 0; this.coinsEarned = 0;
+        this.scaled = false; // Reset scaled flag for every level load
         
         // Remove old meshes
         while(this.group.children.length > 0){ 
@@ -101,9 +113,12 @@ class Fortress {
         if (this.state === 'waiting' && !this.scaled && crowdWorldY >= this.worldY - 1500) {
             const playerPower = this.game.crowd.count;
             if (playerPower > 0) {
-                const minPhaseHp = Math.floor(playerPower * 0.4);
+                // Dynamically balance phase HP to match player crowd strength.
+                // Total Boss HP is scaled to playerPower * 2.0, split equally among all phases.
+                // Consuming N units deals N * 3 damage, meaning the player consumes exactly 67% of their crowd
+                // to beat all phases, leaving ~33% alive to celebrate and rescue the Princess.
                 for (const phase of this.phases) {
-                    if (phase.hp < minPhaseHp) phase.hp = minPhaseHp;
+                    phase.hp = Math.max(15, Math.floor(playerPower * 2.0 / this.phases.length));
                 }
                 this.maxHP = this.currentPhase.hp;
                 this.hp = this.maxHP;
@@ -180,7 +195,12 @@ class Fortress {
                         this.game.screenFx.flash('rgba(255,255,255,0.8)', 0.6);
                         if (this.game.sound) this.game.sound.victory();
                         
-                        setTimeout(() => this.game.showResults(), 1800);
+                        if (this.game.currentLevel && this.game.currentLevel.id === 20) {
+                            this._spawnPrincess();
+                            setTimeout(() => this.game.showResults(), 4500);
+                        } else {
+                            setTimeout(() => this.game.showResults(), 1800);
+                        }
                     }
                     break;
                 }
@@ -206,6 +226,12 @@ class Fortress {
             } else {
                 this.group.visible = false;
             }
+        }
+
+        if (this.princessMesh) {
+            const pt = (this.game.ui ? this.game.ui.t : 0);
+            this.princessMesh.position.y = Math.abs(Math.sin(pt * 5.0)) * 2.0;
+            this.princessMesh.rotation.y = Math.sin(pt * 2.0) * 0.2;
         }
     }
 
@@ -256,5 +282,59 @@ class Fortress {
         }
 
         ctx.restore();
+    }
+
+    _spawnPrincess() {
+        const princess = this._createPrincessModel();
+        // Place her exactly where the boss stood
+        princess.position.set(0, 0, -this.worldY * 0.15);
+        this.game.scene.add(princess);
+        this.princessMesh = princess;
+        
+        // Spawn floating text and particles
+        this.game.floatingText.spawn("👑 PRINCESS RESCUED! 👑", GC.W / 2, GC.H / 3, "#FF69B4", 32);
+        this.game.particles.confetti(GC.W / 2, GC.H / 3, 100);
+    }
+
+    _createPrincessModel() {
+        const princessGroup = new THREE.Group();
+
+        // Body/Dress (Pink dress)
+        const dressMat = new THREE.MeshStandardMaterial({ color: 0xFF69B4, roughness: 0.3, metalness: 0.1 });
+        const dress = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 2.2, 4.0, 16), dressMat);
+        dress.position.y = 2.0;
+        princessGroup.add(dress);
+
+        // Head (Peach)
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xFFD3B6, roughness: 0.5 });
+        const head = new THREE.Mesh(new THREE.SphereGeometry(1.1, 16, 16), headMat);
+        head.position.y = 4.85;
+        princessGroup.add(head);
+
+        // Crown (Golden)
+        const crownMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.1, metalness: 0.9 });
+        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.4, 0.4, 6), crownMat);
+        crown.position.set(0, 5.8, 0);
+        princessGroup.add(crown);
+
+        // Hair (Blonde)
+        const hairMat = new THREE.MeshStandardMaterial({ color: 0xFFE066, roughness: 0.6 });
+        const hairL = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 8), hairMat);
+        hairL.position.set(-0.7, 4.8, -0.3);
+        princessGroup.add(hairL);
+        const hairR = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 8), hairMat);
+        hairR.position.set(0.7, 4.8, -0.3);
+        princessGroup.add(hairR);
+
+        // Eyes
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), eyeMat);
+        eyeL.position.set(-0.35, 5.05, 0.95);
+        princessGroup.add(eyeL);
+        const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), eyeMat);
+        eyeR.position.set(0.35, 5.05, 0.95);
+        princessGroup.add(eyeR);
+
+        return princessGroup;
     }
 }

@@ -85,6 +85,20 @@ public class MainActivity extends BridgeActivity {
         hideSystemUI();
     }
 
+    @Override
+    public void onBackPressed() {
+        this.bridge.getWebView().evaluateJavascript(
+            "typeof window.onAndroidBack === 'function' ? window.onAndroidBack() : false",
+            value -> {
+                if (!"true".equals(value)) {
+                    runOnUiThread(() -> {
+                        moveTaskToBack(true);
+                    });
+                }
+            }
+        );
+    }
+
     private void hideSystemUI() {
         View decorView = getWindow().getDecorView();
         decorView.setSystemUiVisibility(
@@ -156,6 +170,27 @@ public class MainActivity extends BridgeActivity {
                         loadRewardedAd();
                     }
                 });
+            });
+        }
+
+        @JavascriptInterface
+        public void openPlayStore() {
+            runOnUiThread(() -> {
+                try {
+                    android.content.Intent intent = new android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse("market://details?id=com.ravidandaiya.crowdrush")
+                    );
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                } catch (android.content.ActivityNotFoundException e) {
+                    android.content.Intent intent = new android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse("https://play.google.com/store/apps/details?id=com.ravidandaiya.crowdrush")
+                    );
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                }
             });
         }
 

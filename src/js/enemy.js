@@ -419,15 +419,10 @@ class EnemyManager {
 
             if (mob.state === 'waiting') {
                 if (crowdWorldY >= mob.worldY - 1000 && !mob.scaled) {
-                    const minDesired = Math.floor(this.game.crowd.count * 0.45);
-                    if (mob.count < minDesired) {
-                        mob.count = minDesired;
-                        mob.maxCount = minDesired;
-                        mob.hp = minDesired;
-                        const vc = Math.min(mob.count, mob.type === 'split_boss' ? 1 : 80);
-                        while (mob.units.length < vc) {
-                            mob.units.push(mob._makeUnit(mob.type === 'split_boss'));
-                        }
+                    // Populate 3D visual units based on configured mob size without mutating counts
+                    const vc = Math.min(mob.count, mob.type === 'split_boss' ? 1 : 80);
+                    while (mob.units.length < vc) {
+                        mob.units.push(mob._makeUnit(mob.type === 'split_boss'));
                     }
                     mob.scaled = true;
                 }
@@ -466,11 +461,10 @@ class EnemyManager {
         while (this.clashAcc >= interval) {
             this.clashAcc -= interval;
             
-            // FIX: each side removes based on their OWN count to keep fights balanced
-            // Enemy removes units proportional to enemy count (attacker strength)
-            const enemyTickRemove = Math.max(1, Math.ceil(mob.count / 18));
-            // Crowd damage proportional to crowd count (defender strength)
-            const crowdTickRemove = Math.max(1, Math.ceil(this.game.crowd.count / 18));
+            // Enemy removes units proportional to crowd count (attacker strength)
+            const enemyTickRemove = Math.max(1, Math.ceil(this.game.crowd.count / 12));
+            // Crowd damage proportional to enemy count (attacker strength)
+            const crowdTickRemove = Math.max(1, Math.ceil(mob.count / 12));
             
             const erAmount = mob.removeAmount(enemyTickRemove);
             const er = erAmount > 0;

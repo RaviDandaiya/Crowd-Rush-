@@ -65,6 +65,7 @@ class Game {
 
         this.currentLevel = null;
         this.lastTime = 0;
+        this.storyShown = false;
         
         // Ad System Mock
         this.adPlaying = false;
@@ -76,6 +77,16 @@ class Game {
         if (typeof Android !== 'undefined' && Android.showBanner) {
             try { Android.showBanner(); } catch(e) {}
         }
+
+        // Detect mobile app/Capacitor environment to apply full-bleed borderless UI
+        if (typeof Android !== 'undefined' || window.Capacitor) {
+            document.body.classList.add('mobile-native');
+        }
+
+        // Register Android hardware back button handler
+        window.onAndroidBack = () => {
+            return this.handleBackButton();
+        };
     }
 
     _initEnvironment() {
@@ -279,7 +290,7 @@ class Game {
             pointerDown = true;
 
             // UI clicks first
-            if (this.state === 'MENU' || this.state === 'GAME_OVER' || this.state === 'RESULTS') {
+            if (this.state === 'MENU' || this.state === 'GAME_OVER' || this.state === 'RESULTS' || this.state === 'STORY_INTRO') {
                 if (this.ui.handleClick(pos.x, pos.y)) return;
             }
             
@@ -297,6 +308,17 @@ class Game {
             const pos = this._getPos(e);
             if (!pos) return;
 
+            // Shop skins scroll
+            if (this.state === 'MENU' && this.ui.showingShop && this.ui._shopTab === 'skins') {
+                if (this.ui._shopLastTouchY !== null) {
+                    const dy = this.ui._shopLastTouchY - pos.y;
+                    this.ui._shopScrollY = Math.max(0, (this.ui._shopScrollY || 0) + dy);
+                }
+                this.ui._shopLastTouchY = pos.y;
+                return;
+            }
+            this.ui._shopLastTouchY = null;
+
             if (this.state === 'PLAYING' || this.state === 'CLASH' || this.state === 'FORTRESS_ATTACK') {
                 const dx = pos.x - this.dragStartX;
                 const sensitivity = (2.0 / (GC.W * 0.7)) * (this.settings ? this.settings.sensitivity : 1.0);
@@ -308,6 +330,7 @@ class Game {
         const onUp = (e) => {
             e.preventDefault();
             pointerDown = false;
+            if (this.ui) this.ui._shopLastTouchY = null;
         };
 
         // Attach listeners to the window so drag works across entire screen
@@ -347,14 +370,24 @@ class Game {
         this.particles.confetti(cx, cy, 80);
     }
 
-    startLevel(num) {
-        const idx = num - 1;
-        if (idx < 0 || idx >= LEVELS.length) return;
-        if (typeof Android !== 'undefined' && Android.hideBanner) {
-            try { Android.hideBanner(); } catch(e) {}
+    startLevel(numOrLevelObj) {
+        if (typeof numOrLevelObj === 'object') {
+            this.currentLevel = numOrLevelObj;
+            this.state = 'PLAYING';
+        } else {
+            const idx = numOrLevelObj - 1;
+            if (idx < 0 || idx >= LEVELS.length) return;
+            if (typeof Android !== 'undefined' && Android.hideBanner) {
+                try { Android.hideBanner(); } catch(e) {}
+            }
+            this.currentLevel = LEVELS[idx];
+            if (numOrLevelObj === 1 && !this.storyShown) {
+                this.state = 'STORY_INTRO';
+                this.storyShown = true;
+            } else {
+                this.state = 'PLAYING';
+            }
         }
-        this.currentLevel = LEVELS[idx];
-        this.state = 'PLAYING';
         this.ui.showingShop = false;
         this.ui.resultData = null;
         this.ui.showingWorldMap = false;
@@ -383,12 +416,52 @@ class Game {
 
     revive() {
         if (this.state !== 'GAME_OVER') return;
+        const savedY = this.crowd.worldY;
         const rc = Math.max(5, Math.floor((this.crowd.displayCount || 10) * 0.5));
+        
         this.crowd.init(rc, this.shop.getCurrentSkin());
+        
+        // Restore death coordinates
+        this.crowd.worldY = savedY;
+        this.crowd.group.position.z = -savedY * 0.15;
+
+        // Reset gates at or ahead of the revive point so they trigger properly
+        if (this.gates && this.gates.pairs) {
+            for (const pair of this.gates.pairs) {
+                if (pair.y >= savedY - 50) {
+                    pair.passed = false;
+                    if (pair.left) {
+                        pair.left.triggered = false;
+                        if (pair.left.mesh && pair.left.mesh.material) {
+                            pair.left.mesh.material.opacity = 0.85;
+                        }
+                    }
+                    if (pair.right) {
+                        pair.right.triggered = false;
+                        if (pair.right.mesh && pair.right.mesh.material) {
+                            pair.right.mesh.material.opacity = 0.85;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Determine and restore correct game state
+        if (savedY >= this.currentLevel.laneLength - 45) {
+            this.state = 'FORTRESS_ATTACK';
+            if (this.fortress) {
+                this.fortress.state = 'attacking';
+            }
+            this.screenFx.pulseVignette('#FF8800', 999);
+        } else if (this.enemies && this.enemies.isClashing()) {
+            this.state = 'CLASH';
+        } else {
+            this.state = 'PLAYING';
+        }
+
         if (typeof Android !== 'undefined' && Android.hideBanner) {
             try { Android.hideBanner(); } catch(e) {}
         }
-        this.state = 'PLAYING';
     }
 
     goToMenu() {
@@ -400,16 +473,69 @@ class Game {
         }
     }
 
+    handleBackButton() {
+        if (this.state === 'MENU') {
+            if (this.ui.showingPrivacyPolicy) {
+                this.ui.showingPrivacyPolicy = false;
+                return true;
+            }
+            if (this.ui.showingTerms) {
+                this.ui.showingTerms = false;
+                return true;
+            }
+            if (this.ui.showingSettings) {
+                this.ui.showingSettings = false;
+                return true;
+            }
+            if (this.ui.showingShop) {
+                this.ui.showingShop = false;
+                return true;
+            }
+            if (this.ui.showingWorldMap) {
+                this.ui.showingWorldMap = false;
+                return true;
+            }
+            if (this.ui.showingLeaderboard) {
+                this.ui.showingLeaderboard = false;
+                return true;
+            }
+            return false; // Exit/minimize app since we are on the main menu
+        } else {
+            // Return to menu from gameplay, results, or game over
+            this.goToMenu();
+            return true;
+        }
+    }
+
     showResults() {
         const coins = this.fortress.coinsEarned;
         this.shop.addCoins(coins);
-        this.shop.completeLevel(this.currentLevel.id);
-        this.shop.trackBestRun({
-            level: this.currentLevel.id,
-            crowd: this.crowd.count,
-            damage: this.fortress.damageDealt,
-            coins: coins,
-        });
+        
+        if (this.currentLevel && this.currentLevel.isDaily) {
+            const allSkins = Object.keys(CROWD_SKINS);
+            const lockedSkins = allSkins.filter(k => !this.shop.isSkinUnlocked(k));
+            let rewardText = "🎉 Daily Quest Complete! +2,000 Coins";
+            this.shop.addCoins(2000);
+            if (lockedSkins.length > 0) {
+                const randomSkin = lockedSkins[Math.floor(Math.random() * lockedSkins.length)];
+                this.shop.data.unlockedSkins.push(randomSkin);
+                this.shop.save();
+                rewardText += ` & Unlocked ${CROWD_SKINS[randomSkin].name} Skin!`;
+            } else {
+                rewardText += " (All Skins Already Unlocked!)";
+            }
+            this.dailyRewardText = rewardText;
+        } else {
+            this.dailyRewardText = null;
+            this.shop.completeLevel(this.currentLevel.id);
+            this.shop.trackBestRun({
+                level: this.currentLevel.id,
+                crowd: this.crowd.count,
+                damage: this.fortress.damageDealt,
+                coins: coins,
+            });
+        }
+
         this.ui.resultData = {
             crowdRemaining: this.crowd.count,
             damageDealt: this.fortress.damageDealt,
@@ -420,6 +546,106 @@ class Game {
         if (typeof Android !== 'undefined' && Android.showBanner) {
             try { Android.showBanner(); } catch(e) {}
         }
+    }
+
+    generateDailyLevel() {
+        const today = new Date();
+        const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+        
+        let seed = dateSeed;
+        const random = () => {
+            const x = Math.sin(seed++) * 10000;
+            return x - Math.floor(x);
+        };
+        
+        const themes = ['meadow', 'desert', 'volcano', 'dark'];
+        const chosenTheme = themes[Math.floor(random() * themes.length)];
+        
+        const laneLength = 9000 + Math.floor(random() * 2000);
+        
+        const gates = [];
+        for (let y = 600; y < laneLength - 800; y += 900) {
+            const leftType = random() < 0.6 ? 'multiply' : random() < 0.5 ? 'golden' : 'shield';
+            const rightType = random() < 0.6 ? 'multiply' : random() < 0.5 ? 'divide' : 'subtract';
+            
+            const leftVal = leftType === 'multiply' ? Math.floor(random() * 4) + 4 : 0;
+            const rightVal = rightType === 'divide' ? 2 : rightType === 'subtract' ? Math.floor(random() * 10) + 3 : 0;
+            
+            gates.push({
+                y: y,
+                left: { 
+                    type: leftType, 
+                    value: leftVal, 
+                    label: leftType === 'multiply' ? `×${leftVal}` : leftType === 'golden' ? 'GOLDEN' : 'SHIELD' 
+                },
+                right: { 
+                    type: rightType, 
+                    value: rightVal, 
+                    label: rightType === 'divide' ? '÷2' : rightType === 'subtract' ? `-${rightVal}` : 'SHIELD' 
+                }
+            });
+        }
+        
+        const obstacles = [];
+        const obsTypes = ['saw', 'pit', 'hammer'];
+        for (let y = 1000; y < laneLength - 1000; y += 1200) {
+            const type = obsTypes[Math.floor(random() * obsTypes.length)];
+            if (type === 'pit') {
+                obstacles.push({
+                    y: y,
+                    type: 'pit',
+                    laneX: (random() - 0.5) * 0.8,
+                    width: 25 + Math.floor(random() * 10),
+                    isLava: chosenTheme === 'volcano' || random() < 0.5
+                });
+            } else if (type === 'saw') {
+                obstacles.push({
+                    y: y,
+                    type: 'saw',
+                    range: 0.6 + random() * 0.3,
+                    speed: 4.0 + random() * 4.0
+                });
+            } else {
+                obstacles.push({
+                    y: y,
+                    type: 'hammer',
+                    laneX: (random() - 0.5) * 1.0,
+                    speed: 5.0 + random() * 3.0
+                });
+            }
+        }
+        
+        const enemies = [];
+        for (let y = 2000; y < laneLength - 1200; y += 2200) {
+            const isBoss = random() < 0.4;
+            enemies.push({
+                y: y,
+                count: 100 + Math.floor(random() * 150),
+                type: isBoss ? 'split_boss' : 'normal'
+            });
+        }
+        
+        const phases = [
+            { hp: 1000 + Math.floor(random() * 1000), label: 'Daily Outer Gate', theme: chosenTheme },
+            { hp: 1200 + Math.floor(random() * 800), label: 'Daily Inner Core', theme: 'boss' }
+        ];
+        
+        return {
+            id: 999,
+            name: `Daily Quest (${today.toLocaleDateString()})`,
+            world: 7,
+            theme: chosenTheme,
+            startCrowd: 10,
+            laneLength: laneLength,
+            gates: gates,
+            obstacles: obstacles,
+            enemies: enemies,
+            fortress: {
+                hp: phases.reduce((a, b) => a + b.hp, 0),
+                phases: phases
+            },
+            isDaily: true
+        };
     }
 
     start() {
@@ -513,6 +739,8 @@ class Game {
                     try { Android.showBanner(); } catch(e) {}
                 }
             }
+        } else if (this.state === 'RESULTS') {
+            this.crowd.update(dt, false);
         }
         
         // Handle Mock Ad playback
@@ -637,7 +865,7 @@ class Game {
             
             if (this.ui.showingShop) this.ui.drawShop(ctx);
             else this.ui.drawMainMenu(ctx);
-        } else if (['PLAYING','CLASH','FORTRESS_ATTACK'].includes(this.state)) {
+        } else if (['PLAYING','CLASH','FORTRESS_ATTACK','STORY_INTRO'].includes(this.state)) {
             // 3D scene handles game rendering, UI just draws HUD
             this.gates.draw(ctx, this.crowd.worldY);
             this.enemies.draw(ctx, this.crowd.worldY);
@@ -645,7 +873,11 @@ class Game {
             this.particles.draw(ctx);
             
             this.combo.draw(ctx);
-            this.ui.drawHUD(ctx);
+            if (this.state === 'STORY_INTRO') {
+                this.ui.drawStoryIntro(ctx);
+            } else {
+                this.ui.drawHUD(ctx);
+            }
         } else if (this.state === 'GAME_OVER') {
             this.ui.drawGameOver(ctx);
         } else if (this.state === 'RESULTS') {
