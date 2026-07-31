@@ -105,6 +105,13 @@ class Fortress {
         const pupilR = new THREE.Mesh(eyeBGeom, matB);
         pupilR.position.set(0, 0, 2);
         eyeR.add(pupilR);
+
+        this.group.traverse(child => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
     }
 
     startAttack() { this.state = 'attacking'; this.attackTimer = 0; }
@@ -184,7 +191,6 @@ class Fortress {
                         this.currentPhase = this.phases[this.phaseIndex];
                         this.maxHP = this.currentPhase.hp;
                         this.hp = this.maxHP;
-                        this.damageDealt = 0;
                         this.game.floatingText.spawn(`🔥 ${this.currentPhase.label}!`, GC.W/2, screenY - 60, '#FF8800');
                     } else {
                         this.state = 'destroyed';
@@ -194,12 +200,12 @@ class Fortress {
                         this.game.screenFx.shake(25, 1.2);
                         this.game.screenFx.flash('rgba(255,255,255,0.8)', 0.6);
                         if (this.game.sound) this.game.sound.victory();
-                        
-                        if (this.game.currentLevel && this.game.currentLevel.id === 20) {
+                        const isLastLevel = this.game.currentLevel && this.game.currentLevel.id === 20;
+                        if (isLastLevel) {
                             this._spawnPrincess();
                             setTimeout(() => this.game.showResults(), 4500);
                         } else {
-                            setTimeout(() => this.game.showResults(), 1800);
+                            setTimeout(() => this.game.showResults(), 2500);
                         }
                     }
                     break;
@@ -301,39 +307,90 @@ class Fortress {
 
         // Body/Dress (Pink dress)
         const dressMat = new THREE.MeshStandardMaterial({ color: 0xFF69B4, roughness: 0.3, metalness: 0.1 });
-        const dress = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 2.2, 4.0, 16), dressMat);
-        dress.position.y = 2.0;
+        const dress = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 2.2, 3.5, 16), dressMat);
+        dress.position.y = 1.75;
         princessGroup.add(dress);
 
-        // Head (Peach)
-        const headMat = new THREE.MeshStandardMaterial({ color: 0xFFD3B6, roughness: 0.5 });
-        const head = new THREE.Mesh(new THREE.SphereGeometry(1.1, 16, 16), headMat);
-        head.position.y = 4.85;
+        // Head (Peach, slightly larger for cute proportions)
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xFFE0C0, roughness: 0.5 });
+        const head = new THREE.Mesh(new THREE.SphereGeometry(1.4, 16, 16), headMat);
+        head.position.y = 4.9;
         princessGroup.add(head);
+
+        // Hair Base (Blonde)
+        const hairMat = new THREE.MeshStandardMaterial({ color: 0xFFE066, roughness: 0.6 });
+        
+        // Hair Back (Long flowing hair)
+        const hairBack = new THREE.Mesh(new THREE.SphereGeometry(1.3, 16, 16), hairMat);
+        hairBack.scale.set(1.2, 1.6, 0.8);
+        hairBack.position.set(0, 3.8, -0.8);
+        princessGroup.add(hairBack);
+
+        // Cute twintails
+        const hairL = new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 12), hairMat);
+        hairL.position.set(-1.4, 5.0, -0.2);
+        princessGroup.add(hairL);
+        const hairR = new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 12), hairMat);
+        hairR.position.set(1.4, 5.0, -0.2);
+        princessGroup.add(hairR);
+
+        // Cute bangs (front hair)
+        const bangs = new THREE.Mesh(new THREE.SphereGeometry(1.45, 16, 16, 0, Math.PI, 0, Math.PI/2), hairMat);
+        bangs.position.set(0, 4.9, 0);
+        bangs.rotation.x = -0.15;
+        princessGroup.add(bangs);
 
         // Crown (Golden)
         const crownMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.1, metalness: 0.9 });
-        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.4, 0.4, 6), crownMat);
-        crown.position.set(0, 5.8, 0);
+        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.4, 0.5, 6), crownMat);
+        crown.position.set(0, 6.2, 0);
         princessGroup.add(crown);
 
-        // Hair (Blonde)
-        const hairMat = new THREE.MeshStandardMaterial({ color: 0xFFE066, roughness: 0.6 });
-        const hairL = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 8), hairMat);
-        hairL.position.set(-0.7, 4.8, -0.3);
-        princessGroup.add(hairL);
-        const hairR = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 8), hairMat);
-        hairR.position.set(0.7, 4.8, -0.3);
-        princessGroup.add(hairR);
-
-        // Eyes
+        // Eyes (larger, cute vertical oval eyes)
         const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-        const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), eyeMat);
-        eyeL.position.set(-0.35, 5.05, 0.95);
+        const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), eyeMat);
+        eyeL.scale.set(1, 1.5, 0.5);
+        eyeL.position.set(-0.45, 4.8, 1.35);
         princessGroup.add(eyeL);
-        const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), eyeMat);
-        eyeR.position.set(0.35, 5.05, 0.95);
+        
+        const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), eyeMat);
+        eyeR.scale.set(1, 1.5, 0.5);
+        eyeR.position.set(0.45, 4.8, 1.35);
         princessGroup.add(eyeR);
+
+        // Blushes (cute!)
+        const blushMat = new THREE.MeshBasicMaterial({ color: 0xFF99AA });
+        const blushL = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), blushMat);
+        blushL.scale.set(1.5, 0.8, 0.5);
+        blushL.position.set(-0.75, 4.5, 1.25);
+        princessGroup.add(blushL);
+
+        const blushR = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), blushMat);
+        blushR.scale.set(1.5, 0.8, 0.5);
+        blushR.position.set(0.75, 4.5, 1.25);
+        princessGroup.add(blushR);
+
+        // Cute Red Bow on her back
+        const bowMat = new THREE.MeshStandardMaterial({ color: 0xFF0033, roughness: 0.3 });
+        const bowL = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), bowMat);
+        bowL.position.set(-0.4, 3.8, -1.8);
+        princessGroup.add(bowL);
+        const bowR = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), bowMat);
+        bowR.position.set(0.4, 3.8, -1.8);
+        princessGroup.add(bowR);
+        const bowC = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), bowMat);
+        bowC.position.set(0, 3.8, -1.9);
+        princessGroup.add(bowC);
+
+        princessGroup.traverse(child => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+
+        // Slight overall scale boost
+        princessGroup.scale.set(1.15, 1.15, 1.15);
 
         return princessGroup;
     }

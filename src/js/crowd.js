@@ -755,6 +755,13 @@ class Crowd {
             unitGroup.scale.set(0, 0, 0);
         }
         
+        unitGroup.traverse(child => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+
         this.group.add(unitGroup);
         
         return {
@@ -799,16 +806,34 @@ class Crowd {
 
     applyGate(type, value) {
         let nc = this.count;
+        let prefix = '';
+        let color = '';
         switch (type) {
-            case 'multiply': nc = Math.floor(nc * value); break;
-            case 'add': nc = nc + value; break;
-            case 'divide': nc = Math.max(0, Math.floor(nc / value)); break;
-            case 'subtract': nc = Math.max(0, nc - value); break;
+            case 'multiply': nc = Math.floor(nc * value); prefix = '×'; color = '#00FF00'; break;
+            case 'add': nc = nc + value; prefix = '+'; color = '#00FF00'; break;
+            case 'divide': nc = Math.max(0, Math.floor(nc / value)); prefix = '÷'; color = '#FF0000'; break;
+            case 'subtract': nc = Math.max(0, nc - value); prefix = '-'; color = '#FF0000'; break;
         }
         nc = Math.max(0, nc);
         const diff = nc - this.count;
-        if (diff > 0) this.addUnits(diff);
-        else if (diff < 0) this.removeUnits(-diff);
+        
+        const cx = GC.W / 2;
+        const cy = GC.H / 2 - 50;
+
+        if (diff > 0) {
+            this.addUnits(diff);
+            if (this.game && this.game.floatingText) {
+                this.game.floatingText.spawn(prefix + value, cx, cy, color, 40);
+                this.game.particles.neonRing(cx, cy, color);
+            }
+        }
+        else if (diff < 0) {
+            this.removeUnits(-diff);
+            if (this.game && this.game.floatingText) {
+                this.game.floatingText.spawn(prefix + value, cx, cy, color, 40);
+                this.game.screenFx.shake(6, 0.2);
+            }
+        }
     }
 
     clashRemoveAmount(amount) {
@@ -856,8 +881,25 @@ class Crowd {
             }
         }
         
+        if (removed > 0 && this.game && this.game.floatingText) {
+            const cx = GC.W / 2 + Utils.randomRange(-30, 30);
+            const cy = GC.H / 2 - 20 + Utils.randomRange(-30, 30);
+            this.game.floatingText.spawn('-' + removed, cx, cy, '#FF3333', 30);
+            this.game.screenFx.shake(5, 0.2);
+            this.game.particles.clashSparks(cx, cy, 10);
+        }
+        
         const remainingToRemove = Math.min(amount - removed, this.count);
         if (remainingToRemove > 0) {
+            let markedDead = 0;
+            for (let i = this.units.length - 1; i >= 0 && markedDead < remainingToRemove; i--) {
+                const u = this.units[i];
+                if (u.alive) {
+                    u.alive = false;
+                    u.targetScale = 0;
+                    markedDead++;
+                }
+            }
             this.count -= remainingToRemove;
             damage += remainingToRemove;
         }
@@ -961,23 +1003,46 @@ class Crowd {
                         u.sword.rotation.z = Utils.lerp(u.sword.rotation.z, 0, 0.2);
                     }
 
-                    // Level 20 special: Prince Arthur runs up to Princess Aurelia!
-                    if (this.game.currentLevel && this.game.currentLevel.id === 20) {
+                    // Combine into Prince animation!
+                    const isLastLevel = this.game.currentLevel && this.game.currentLevel.id === 20;
+                    
+                    if (isLastLevel) {
                         if (i === 0) {
-                            // Prince Arthur stands right in front of the Princess (facing her / the camera)
+                            // The primary unit becomes the Prince
+                            if (u.type !== 'prince') {
+                                // Extract a new Prince mesh and replace the current one
+                                const newPrince = this._makeUnit(false, 'prince');
+                                this.group.remove(u.mesh);
+                                u.mesh = newPrince.mesh;
+                                u.sword = newPrince.sword;
+                                u.type = 'prince';
+                                // Note: newPrince.mesh already has shadows enabled via _makeUnit and is added to group
+                                // We should remove the one _makeUnit just added to avoid duplicates, but u.mesh is already the new one
+                                // Actually, _makeUnit adds to this.group. So we just let it be and remove the old one.
+                            }
+                            
                             tx = 0;
                             tz = -5.0; 
                             u.mesh.position.y = Math.abs(Math.sin(u.phase * 2.0)) * 2; // jump happily
-                            u.mesh.rotation.y = Math.PI; 
+                            u.mesh.rotation.y = Math.PI; // Face the Princess
+                            u.targetScale = 1.8; // Grow into a larger hero
+                            
                             if (u.sword) {
                                 // Prince salutes Princess with sword
-                                u.sword.rotation.x = -1.0;
-                                u.sword.rotation.z = -0.5;
+                                u.sword.rotation.x = Utils.lerp(u.sword.rotation.x, -1.0, 0.2);
+                                u.sword.rotation.z = Utils.lerp(u.sword.rotation.z, -0.5, 0.2);
                             }
                         } else {
-                            // Other soldiers stand behind them in the background so they don't block the view
-                            tx = u.ox * spreadScale;
-                            tz = u.oz * spreadScale - 20.0;
+                            // All other units fly into the Prince (tx=0, tz=-5) and shrink to 0
+                            tx = 0;
+                            tz = -5.0;
+                            u.targetScale = 0;
+                            
+                            u.mesh.position.y = Math.abs(Math.sin(u.phase * 3.5)) * 4.5;
+                            u.mesh.rotation.y += dt * 7.0; // spin quickly while merging
+                            syFactor = 1.25 + Math.sin(u.phase * 4) * 0.15;
+                            sxFactor = 0.85 - Math.sin(u.phase * 4) * 0.1;
+                            szFactor = 0.85 - Math.sin(u.phase * 4) * 0.1;
                         }
                     }
                 } else if (!moving) {
@@ -985,20 +1050,21 @@ class Crowd {
                         // Spacing based on index to form a clean line-by-line chain
                         u.ringAngle = i * 0.15;
                     }
-                    u.ringAngle += dt * 6.5; // smooth rotation speed
+                    u.ringAngle += dt * 1.5; // smooth slow rotation speed
                     
                     const t = u.ringAngle;
-                    const orbitW = 9.0;
-                    const orbitH = 4.5;
                     
-                    // Circular loop on player's side: Z starts at -1.875 (clash midpoint) and goes back
-                    tx = Math.sin(t) * orbitW;
-                    tz = (1 - Math.cos(t)) * orbitH - 1.875;
+                    // Unique round fighting style: Crowd surrounds the enemy!
+                    // The enemy is at local Z = -3.75
+                    const orbitRadius = 4.0 + (i % 3) * 1.8; // Concentric rings
+                    
+                    tx = Math.cos(t) * orbitRadius;
+                    tz = Math.sin(t) * orbitRadius - 3.75; // Offset to center on enemy
                     
                     // Flat on the ground (no up-down animation when clashing)
                     u.mesh.position.y = u.type === 'giant' ? 4.5 : 2.2;
                     
-                    const attacking = tz < -2.5; // deep in clash zone
+                    const attacking = true; // Always attacking in the circle
                     u.targetScale = attacking ? 1.25 : 1.0;
                     
                     if (attacking) {
@@ -1007,7 +1073,7 @@ class Crowd {
                         sxFactor = 0.85;
                         szFactor = 0.85;
                         
-                        // Lean forward in direction of attack (-Z) and swing sword!
+                        // Lean forward towards the enemy and swing sword!
                         u.mesh.rotation.x = Utils.lerp(u.mesh.rotation.x || 0, 0.45, 0.2);
                         if (u.sword) {
                             u.sword.rotation.x = Utils.lerp(u.sword.rotation.x, -1.0 + Math.sin(u.phase * 8.0) * 1.0, 0.35);
@@ -1025,10 +1091,10 @@ class Crowd {
                         }
                     }
                     
-                    // Face moving direction (heading yaw rotation)
-                    const vx = Math.cos(t) * orbitW;
-                    const vz = Math.sin(t) * orbitH;
-                    const targetRotY = Math.atan2(vx, vz);
+                    // Face the enemy in the center
+                    const dx = -Math.cos(t);
+                    const dz = -Math.sin(t);
+                    const targetRotY = Math.atan2(dx, dz);
                     const rotLerp = 1 - Math.pow(1 - 0.18, dt * 60);
                     u.mesh.rotation.y = Utils.lerp(u.mesh.rotation.y || 0, targetRotY, rotLerp);
                 } else {

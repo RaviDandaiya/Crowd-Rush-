@@ -281,4 +281,57 @@ class SoundManager {
             });
         });
     }
+
+    // Procedural BGM Loop
+    playBGM() {
+        if (!this.enabled || this.bgmPlaying) return;
+        this.bgmPlaying = true;
+        this._play(ctx => {
+            this.bgmCtx = ctx;
+            this.bgmGain = ctx.createGain();
+            this.bgmGain.gain.value = 0.05; // Low volume background
+            this.bgmGain.connect(ctx.destination);
+            
+            let nextNoteTime = ctx.currentTime + 0.1;
+            let noteIndex = 0;
+            const sequence = [196, 261, 329, 392, 329, 261]; // G3, C4, E4, G4, E4, C4 (Arpeggio)
+            
+            this.bgmInterval = setInterval(() => {
+                if (!this.bgmPlaying || ctx.state !== 'running') return;
+                while (nextNoteTime < ctx.currentTime + 0.1) {
+                    const freq = sequence[noteIndex % sequence.length];
+                    
+                    const osc = ctx.createOscillator();
+                    const env = ctx.createGain();
+                    
+                    osc.type = 'square';
+                    osc.frequency.value = freq;
+                    
+                    env.gain.setValueAtTime(0, nextNoteTime);
+                    env.gain.linearRampToValueAtTime(0.5, nextNoteTime + 0.02);
+                    env.gain.exponentialRampToValueAtTime(0.01, nextNoteTime + 0.15);
+                    
+                    osc.connect(env);
+                    env.connect(this.bgmGain);
+                    
+                    osc.start(nextNoteTime);
+                    osc.stop(nextNoteTime + 0.2);
+                    
+                    nextNoteTime += 0.18; // 16th note timing
+                    noteIndex++;
+                }
+            }, 25);
+        });
+    }
+
+    stopBGM() {
+        this.bgmPlaying = false;
+        if (this.bgmInterval) {
+            clearInterval(this.bgmInterval);
+            this.bgmInterval = null;
+        }
+        if (this.bgmGain) {
+            this.bgmGain.gain.exponentialRampToValueAtTime(0.001, this._getCtx().currentTime + 0.5);
+        }
+    }
 }

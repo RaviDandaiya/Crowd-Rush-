@@ -39,6 +39,9 @@ class UI {
         // Shop skins scroll offset
         this._shopScrollY = 0;
         this._shopLastTouchY = null;
+        // World Map scroll offset
+        this._wmScrollY = 0;
+        this._wmLastTouchY = null;
     }
 
     _applyTheme(theme) {
@@ -897,14 +900,10 @@ class UI {
         ctx.fillStyle = '#095C7A'; ctx.fillText('CROWD', -4, -26);
         ctx.fillStyle = '#007A99'; ctx.fillText('CROWD', -6, -27);
 
-        // CROWD (Electric Cyan Front with Sweeping Highlight)
+        // CROWD (Electric Cyan Front)
         ctx.shadowColor = 'rgba(0, 229, 255, 0.9)'; ctx.shadowBlur = 25;
-        const cyGrad = ctx.createLinearGradient(-80, 0, 80, 0);
-        const cySweep = (this.t * 0.8) % 2;
-        cyGrad.addColorStop(0, '#00E5FF');
-        cyGrad.addColorStop(Math.min(1, Math.max(0, cySweep - 0.2)), '#00E5FF');
-        cyGrad.addColorStop(Math.min(1, Math.max(0, cySweep)), '#E5FFFF');
-        cyGrad.addColorStop(Math.min(1, Math.max(0, cySweep + 0.2)), '#00E5FF');
+        const cyGrad = ctx.createLinearGradient(0, -60, 0, 0);
+        cyGrad.addColorStop(0, '#E5FFFF');
         cyGrad.addColorStop(1, '#00BFFF');
         ctx.fillStyle = cyGrad;
         ctx.fillText('CROWD', -7, -28);
@@ -916,14 +915,10 @@ class UI {
         ctx.fillStyle = '#7A0E3C'; ctx.fillText('RUSH', -4, 30);
         ctx.fillStyle = '#99124D'; ctx.fillText('RUSH', -6, 29);
 
-        // RUSH (Vivid Pink Front with Sweeping Highlight)
+        // RUSH (Vivid Pink Front)
         ctx.shadowColor = 'rgba(255, 46, 147, 0.9)'; ctx.shadowBlur = 25;
-        const pkGrad = ctx.createLinearGradient(-80, 0, 80, 0);
-        const pkSweep = (this.t * 0.8 + 0.5) % 2;
-        pkGrad.addColorStop(0, '#FF2E93');
-        pkGrad.addColorStop(Math.min(1, Math.max(0, pkSweep - 0.2)), '#FF2E93');
-        pkGrad.addColorStop(Math.min(1, Math.max(0, pkSweep)), '#FFCCEA');
-        pkGrad.addColorStop(Math.min(1, Math.max(0, pkSweep + 0.2)), '#FF2E93');
+        const pkGrad = ctx.createLinearGradient(0, 0, 0, 60);
+        pkGrad.addColorStop(0, '#FFCCEA');
         pkGrad.addColorStop(1, '#D50066');
         ctx.fillStyle = pkGrad;
         ctx.fillText('RUSH', -7, 28);
@@ -981,20 +976,65 @@ class UI {
         ctx.fillStyle = '#00DDFF';
         ctx.font = '900 11px "Outfit", sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(`WORLD ${world}  ·  LEVEL ${lvNum}`, w / 2, cy - 18);
+        ctx.fillText(`WORLD ${world}  ·  LEVEL ${lvNum}`, w / 2, cy - 20);
 
         ctx.fillStyle = '#FFFFFF';
         ctx.font = '900 22px "Outfit", sans-serif';
         ctx.shadowColor = 'rgba(255,255,255,0.2)'; ctx.shadowBlur = 10;
-        ctx.fillText(lvName, w / 2, cy + 6);
+        ctx.fillText(lvName, w / 2, cy + 2);
         ctx.shadowBlur = 0;
 
-        // Stars
+        // Professional Vector Stars
         const best = this.game.shop.getBestForLevel ? this.game.shop.getBestForLevel(lvNum) : null;
         const stars = best ? (best.crowd > 50 ? 3 : best.crowd > 20 ? 2 : 1) : 0;
-        ctx.font = '16px sans-serif';
-        ctx.shadowColor = 'rgba(251, 191, 36, 0.6)'; ctx.shadowBlur = 12;
-        ctx.fillText('⭐'.repeat(stars) + '☆'.repeat(3 - stars), w / 2, cy + 30);
+        
+        const drawStar = (cx, cy, spikes, outerRadius, innerRadius, color, glowColor) => {
+            let rot = Math.PI / 2 * 3;
+            let x = cx, y = cy;
+            const step = Math.PI / spikes;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - outerRadius);
+            for (let i = 0; i < spikes; i++) {
+                x = cx + Math.cos(rot) * outerRadius;
+                y = cy + Math.sin(rot) * outerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+
+                x = cx + Math.cos(rot) * innerRadius;
+                y = cy + Math.sin(rot) * innerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+            }
+            ctx.lineTo(cx, cy - outerRadius);
+            ctx.closePath();
+            
+            ctx.fillStyle = color;
+            if (glowColor) {
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur = 10;
+            }
+            ctx.fill();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.stroke();
+            ctx.restore();
+        };
+
+        for (let i = 0; i < 3; i++) {
+            const isEarned = i < stars;
+            const cx = w / 2 + (i - 1) * 26;
+            const sy = cy + 25 + (i === 1 ? -4 : 0);
+            const color = isEarned ? '#FFD700' : 'rgba(255,255,255,0.1)';
+            const glow = isEarned ? '#FFD700' : null;
+            
+            ctx.save();
+            ctx.translate(cx, sy);
+            ctx.rotate((i - 1) * 0.2);
+            drawStar(0, 0, 5, 10, 4.5, color, glow);
+            ctx.restore();
+        }
 
         // Reset ALL shadow state before restore
         ctx.shadowColor = 'transparent';
@@ -1078,7 +1118,7 @@ class UI {
 
     _drawMenuCoinBadge(ctx, w, by) {
         const coins = this.game.shop.getCoins();
-        const bw = 150, bh = 40;
+        const bw = 160, bh = 44;
         const bx = (w - bw) / 2;
 
         ctx.save();
@@ -1138,7 +1178,6 @@ class UI {
 
         const highest = this.game.shop.getHighestLevel();
         const cur = this.game.shop.getCurrentLevel();
-        let yp = 72;
 
         const themeGrads = {
             meadow:  ['#1B8C32', '#27A842'],
@@ -1147,12 +1186,34 @@ class UI {
             volcano: ['#6B1A00', '#8B2A00'],
         };
 
+        // Layout Constants
+        const cardH = 102;
+        const cardGap = 12;
+        const cardStep = cardH + cardGap;
+        const totalH = (typeof WORLDS !== 'undefined' ? WORLDS.length : 6) * cardStep;
+
+        const btnW = 130;
+        const btnH = 34;
+        const btnX = w / 2;
+        const btnY = h - 34;
+
+        const contentY = 66;
+        const contentH = h - contentY - 60;
+        const maxScroll = Math.max(0, totalH - contentH + 16);
+        this._wmScrollY = Math.max(0, Math.min(this._wmScrollY || 0, maxScroll));
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, contentY, w, contentH);
+        ctx.clip();
+
+        let yp = contentY - this._wmScrollY + 8;
+
         for (const world of (typeof WORLDS !== 'undefined' ? WORLDS : [])) {
             const unlocked = world.levels[0] <= highest;
             const [c1, c2] = themeGrads[world.theme] || ['#333', '#555'];
 
             ctx.save();
-            const cardH = 102;
 
             // Card shadow
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -1210,7 +1271,9 @@ class UI {
                     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                     ctx.fillText(lid, dotX, yp + 60);
 
-                    if (lid <= highest) {
+                    // ONLY register buttons if they are inside the visible clipped content area!
+                    const cardMid = yp + 60;
+                    if (lid <= highest && cardMid > contentY && cardMid < contentY + contentH) {
                         this._regBtn(dotX - 22, yp + 60 - 22, 44, 44, `wm_play_${lid}`);
                     }
 
@@ -1223,10 +1286,20 @@ class UI {
                 }
             }
             ctx.restore();
-            yp += 114;
+            yp += cardStep;
+        }
+        ctx.restore(); // unclip
+
+        // Scroll indicator
+        if (maxScroll > 0) {
+            const trackH = contentH - 8;
+            const thumbH = Math.max(30, trackH * (contentH / totalH));
+            const thumbY = contentY + 4 + (this._wmScrollY / maxScroll) * (trackH - thumbH);
+            ctx.fillStyle = 'rgba(0,180,255,0.5)';
+            ctx.beginPath(); ctx.roundRect(w - 7, thumbY, 4, thumbH, 2); ctx.fill();
         }
 
-        this._btn(ctx, w / 2, h - 34, 130, 34, '← Back', '#334466', '#445577', 'wmBack');
+        this._btn(ctx, btnX, btnY, btnW, btnH, '✕ Cancel', '#AA3333', '#CC4444', 'wmBack');
     }
 
     // ============================================================
@@ -1553,18 +1626,23 @@ class UI {
         this.activeButtons = [];
         const w = GC.W, h = GC.H;
 
+        // Deep purple to midnight blue translucent background
         const bg = ctx.createLinearGradient(0, 0, 0, h);
-        bg.addColorStop(0, '#0A200A'); bg.addColorStop(1, '#0D3015');
+        bg.addColorStop(0, 'rgba(20, 10, 40, 0.85)'); bg.addColorStop(1, 'rgba(10, 20, 40, 0.95)');
         ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
 
-        // Confetti particles (simple)
-        for (let i = 0; i < 20; i++) {
+        // Neon floating particles
+        for (let i = 0; i < 30; i++) {
             const px = ((i * 137 + this.t * 30) % w);
-            const py = ((i * 89 + this.t * 22) % h);
+            const py = ((i * 89 - this.t * 40 + h * 10) % h); // Float upwards
             ctx.save();
-            ctx.globalAlpha = 0.6 + Math.sin(i + this.t * 3) * 0.4;
-            ctx.fillStyle = ['#FFD700', '#FF69B4', '#00FF88', '#00DDFF'][i % 4];
-            ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 0.4 + Math.sin(i + this.t * 3) * 0.4;
+            ctx.fillStyle = ['#00FFFF', '#FF00FF', '#00FF88', '#FFD700'][i % 4];
+            
+            ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10;
+            ctx.translate(px, py);
+            ctx.rotate(this.t * (i % 2 === 0 ? 2 : -2) + i);
+            ctx.fillRect(-3, -3, 6, 6);
             ctx.restore();
         }
 
@@ -1573,54 +1651,124 @@ class UI {
         ctx.save();
         ctx.translate(w / 2, h * 0.12);
         ctx.scale(bounce, bounce);
-        ctx.fillStyle = '#FFD700';
-        ctx.font = 'bold 34px "Outfit", sans-serif';
+        ctx.fillStyle = '#00FFFF';
+        ctx.font = '900 36px "Outfit", sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 20;
-        ctx.fillText('🏆 LEVEL COMPLETE!', 0, 0);
+        ctx.shadowColor = '#00FFFF'; ctx.shadowBlur = 25;
+        ctx.fillText('MISSION COMPLETE', 0, 0);
         ctx.restore();
-
-        // Trophy
-        ctx.font = '52px sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.shadowBlur = 0;
-        ctx.fillText('🎉', w / 2, h * 0.26);
 
         // Stats card
         if (this.resultData) {
             const d = this.resultData;
-            const cardY = h * 0.34;
-            const cardH = 160;
-
-            ctx.fillStyle = 'rgba(255,255,255,0.07)';
-            ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-            ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.roundRect(w * 0.1, cardY, w * 0.8, cardH, 16); ctx.fill(); ctx.stroke();
-
-            const sy = cardY + 28;
-            const sg = 36;
-
-            const stat = (icon, label, val, color, row) => {
-                ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                ctx.font = '12px "Outfit", sans-serif';
-                ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-                ctx.fillText(`${icon} ${label}`, w * 0.15, sy + row * sg);
-
-                ctx.fillStyle = color;
-                ctx.font = 'bold 14px "Outfit", sans-serif';
-                ctx.textAlign = 'right';
-                ctx.fillText(val, w * 0.88, sy + row * sg);
+            const formatNumber = (num) => {
+                if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+                if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+                if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+                return num.toString();
             };
 
-            stat('👥', 'Crowd Remaining', d.crowdRemaining, '#4ADFFF', 0);
-            stat('💥', 'Fortress Damage', d.damageDealt, '#FF8866', 1);
-            stat('🪙', 'Coins Earned', `+${d.coinsEarned}`, '#FFD700', 2);
+            const cardX = w * 0.05;
+            const cardW = w * 0.9;
+            const cardY = h * 0.32;
+            const cardH = 195;
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,255,255,0.3)';
+            ctx.shadowBlur = 30;
+            
+            const cardBg = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardH);
+            cardBg.addColorStop(0, 'rgba(40, 20, 80, 0.6)');
+            cardBg.addColorStop(1, 'rgba(20, 30, 70, 0.6)');
+            
+            ctx.fillStyle = cardBg;
+            ctx.strokeStyle = 'rgba(0,255,255,0.5)';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.roundRect(cardX, cardY, cardW, cardH, 20); 
+            ctx.fill(); ctx.stroke();
+            ctx.restore();
+
+            const sy = cardY + 35;
+            const sg = 40;
+
+            const stat = (icon, label, val, color, row) => {
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = '14px "Outfit", sans-serif';
+                ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                ctx.fillText(`${icon}  ${label}`, cardX + 20, sy + row * sg);
+
+                ctx.fillStyle = color;
+                ctx.font = 'bold 18px "Outfit", sans-serif';
+                ctx.textAlign = 'right';
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 10;
+                ctx.fillText(val, cardX + cardW - 20, sy + row * sg);
+                ctx.shadowBlur = 0;
+            };
+
+            stat('👥', 'Crowd Remaining', formatNumber(d.crowdRemaining), '#00FFFF', 0);
+            stat('💥', 'Fortress Damage', formatNumber(d.damageDealt), '#FF3366', 1);
+            stat('🪙', 'Coins Earned', `+${formatNumber(d.coinsEarned)}`, '#FFD700', 2);
+
+            // Custom Star Drawing
+            const drawStar = (cx, cy, spikes, outerRadius, innerRadius, color, glowColor) => {
+                let rot = Math.PI / 2 * 3;
+                let x = cx, y = cy;
+                const step = Math.PI / spikes;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - outerRadius);
+                for (let i = 0; i < spikes; i++) {
+                    x = cx + Math.cos(rot) * outerRadius;
+                    y = cy + Math.sin(rot) * outerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+
+                    x = cx + Math.cos(rot) * innerRadius;
+                    y = cy + Math.sin(rot) * innerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+                }
+                ctx.lineTo(cx, cy - outerRadius);
+                ctx.closePath();
+                
+                ctx.fillStyle = color;
+                if (glowColor) {
+                    ctx.shadowColor = glowColor;
+                    ctx.shadowBlur = 15;
+                }
+                ctx.fill();
+                
+                // Inner bright stroke
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.stroke();
+                ctx.restore();
+            };
 
             // Stars
             const stars = d.crowdRemaining > 50 ? 3 : d.crowdRemaining > 20 ? 2 : 1;
-            ctx.font = '28px sans-serif';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText('⭐'.repeat(stars) + '☆'.repeat(3 - stars), w / 2, cardY + cardH - 24);
+            const starSpacing = 60;
+            const starY = cardY + cardH - 35;
+            
+            for (let i = 0; i < 3; i++) {
+                const cx = w / 2 + (i - 1) * starSpacing;
+                // Center star is slightly raised
+                const cy = starY + (i === 1 ? -10 : 0);
+                const isEarned = i < stars;
+                const outR = isEarned ? 22 : 18;
+                const inR = isEarned ? 10 : 8;
+                const color = isEarned ? '#FFD700' : 'rgba(255, 255, 255, 0.15)';
+                const glow = isEarned ? '#FFD700' : null;
+                
+                // Tilt the left and right stars slightly for dynamic look
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate((i - 1) * 0.2);
+                drawStar(0, 0, 5, outR, inR, color, glow);
+                ctx.restore();
+            }
         }
 
         // Display Daily Reward text if present
@@ -1632,16 +1780,16 @@ class UI {
         }
 
         if (!this.rewarded2x) {
-            this._btn(ctx, w / 2, h * 0.65, 180, 44, '📺 2x Coins (Ad)', '#DD7700', '#FF9900', 'ad_2x');
+            this._btn(ctx, w / 2, h * 0.65, 180, 44, '📺 2x Coins (Ad)', '#CC6600', '#FF8800', 'ad_2x');
         } else {
-            this._btn(ctx, w / 2, h * 0.65, 180, 44, '✅ Coins Doubled!', '#555', '#777', 'none');
+            this._btn(ctx, w / 2, h * 0.65, 180, 44, '✅ Coins Doubled!', '#444', '#666', 'none');
         }
 
         const isDaily = this.game.currentLevel && this.game.currentLevel.isDaily;
         if (!isDaily && this.game.shop.getCurrentLevel() < LEVELS.length) {
-            this._btn(ctx, w / 2, h * 0.76, 200, 52, '▶  Next Level', '#00AA55', '#00CC66', 'nextLevelR');
+            this._btn(ctx, w / 2, h * 0.76, 200, 52, '▶  Next Level', '#0088CC', '#00DDFF', 'nextLevelR');
         }
-        this._btn(ctx, w / 2, h * 0.86, 150, 40, '🏠  Menu', '#334466', '#445577', 'menuR');
+        this._btn(ctx, w / 2, h * 0.86, 150, 40, '🏠  Menu', '#442266', '#7744AA', 'menuR');
     }
 
     // ============================================================
@@ -2007,18 +2155,32 @@ class UI {
                     }
                 }
             } else if (this.showingWorldMap) {
-                btns.push({ x: w/2-65, y: h-51, w: 130, h: 34, id: 'wmBack' });
-                let yp = 72;
+                const btnW = 130;
+                const btnH = 34;
+                const btnX = w / 2;
+                const btnY = h - 34;
+                btns.push({ x: btnX - btnW/2, y: btnY - btnH/2, w: btnW, h: btnH, id: 'wmBack' });
+
+                const cardH = 102;
+                const cardGap = 12;
+                const cardStep = cardH + cardGap;
+
+                const contentY = 66;
+                const contentH = h - contentY - 60;
+                let yp = contentY - (this._wmScrollY || 0) + 8;
                 for (const world of (typeof WORLDS !== 'undefined' ? WORLDS : [])) {
                     const highest = this.game.shop.getHighestLevel();
                     if (world.levels[0] <= highest) {
                         let dotX = 50;
                         for (const lid of world.levels) {
-                            if (lid <= highest) btns.push({ x: dotX - 25, y: yp + 40, w: 50, h: 50, id: `wm_play_${lid}` });
+                            const cardMid = yp + 60;
+                            if (lid <= highest && cardMid > contentY && cardMid < contentY + contentH) {
+                                btns.push({ x: dotX - 25, y: yp + 60 - 25, w: 50, h: 50, id: `wm_play_${lid}` });
+                            }
                             dotX += 80;
                         }
                     }
-                    yp += 114;
+                    yp += cardStep;
                 }
             } else if (this.showingPrivacyPolicy) {
                 btns.push({ x: w/2-65, y: h-46, w: 130, h: 32, id: 'privacyBack' });
@@ -2092,7 +2254,9 @@ class UI {
             case 'shop': this.showingShop = true; this.showingWorldMap = false; this.showingSettings = false; this.showingLeaderboard = false; this.showingPrivacyPolicy = false; this.showingTerms = false; break;
             case 'shopBack': this.showingShop = false; break;
             case 'worldMap': this.showingWorldMap = true; this.showingShop = false; this.showingSettings = false; this.showingLeaderboard = false; this.showingPrivacyPolicy = false; this.showingTerms = false; break;
-            case 'wmBack': this.showingWorldMap = false; break;
+            case 'wmBack':
+                this.showingWorldMap = false;
+                break;
             case 'settings': this.showingSettings = true; this.showingShop = false; this.showingWorldMap = false; this.showingLeaderboard = false; this.showingPrivacyPolicy = false; this.showingTerms = false; break;
             case 'settingsBack': this.showingSettings = false; this.showingPrivacyPolicy = false; this.showingTerms = false; break;
             case 'leaderboard': this.showingLeaderboard = true; this.showingShop = false; this.showingWorldMap = false; this.showingSettings = false; this.showingPrivacyPolicy = false; this.showingTerms = false; break;
@@ -2112,7 +2276,13 @@ class UI {
                 break;
             case 'prev': { const c = this.game.shop.getCurrentLevel(); if (c>1) this.game.shop.setCurrentLevel(c-1); } break;
             case 'next': { const c = this.game.shop.getCurrentLevel(); if (c<this.game.shop.getHighestLevel()) this.game.shop.setCurrentLevel(c+1); } break;
-            case 'retry': this.game.startLevel(this.game.shop.getCurrentLevel()); break;
+            case 'retry':
+                if (this.game.currentLevel && this.game.currentLevel.isDaily) {
+                    this.game.startLevel(this.game.currentLevel);
+                } else {
+                    this.game.startLevel(this.game.shop.getCurrentLevel());
+                }
+                break;
             case 'revive': 
                 this.game.showAd('revive', () => {
                     this.game.revive();
@@ -2150,7 +2320,14 @@ class UI {
                 }
             } break;
             default:
-                if (id.startsWith('wm_play_')) { const lv = parseInt(id.split('_')[2]); if (lv) { this.game.shop.setCurrentLevel(lv); this.game.startLevel(lv); } }
+                if (id.startsWith('wm_play_')) {
+                    const lv = parseInt(id.split('_')[2]);
+                    if (lv) {
+                        this.showingWorldMap = false;
+                        this.game.shop.setCurrentLevel(lv);
+                        this.game.startLevel(lv);
+                    }
+                }
                 else if (id.startsWith('buys_')) this.game.shop.buySkin(id.slice(5));
                 else if (id.startsWith('sel_'))  this.game.shop.selectSkin(id.slice(4));
                 else if (id.startsWith('buy_'))  this.game.shop.buyUpgrade(id.slice(4));

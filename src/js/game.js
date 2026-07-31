@@ -1,4 +1,4 @@
-// ============================================================
+    // ============================================================
 // game.js — Main game loop using Three.js for WebGL 3D rendering
 // ============================================================
 
@@ -24,13 +24,29 @@ class Game {
         this.renderer.setPixelRatio(this.dpr);
         this.renderer.setClearColor(0x2B2F36); // Dark grey background
         
+        // Enable Shadows
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        
         // Lighting
         const ambient = new THREE.AmbientLight(0xffffff, 0.6); // Enhanced ambient
         this.scene.add(ambient);
         
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); // Enhanced directional
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); // Enhanced directional
         dirLight.position.set(-50, 100, 50);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 300;
+        dirLight.shadow.camera.left = -100;
+        dirLight.shadow.camera.right = 100;
+        dirLight.shadow.camera.top = 100;
+        dirLight.shadow.camera.bottom = -100;
+        dirLight.shadow.bias = -0.0005;
         this.scene.add(dirLight);
+        this.scene.add(dirLight.target);
+        this.dirLight = dirLight;
 
         // Neon ambient glow
         const blueGlow = new THREE.PointLight(0x00B4FF, 1.5, 200);
@@ -100,6 +116,7 @@ class Game {
         this.roadMesh = new THREE.Mesh(roadGeom, roadMat);
         this.roadMesh.rotation.x = -Math.PI / 2;
         this.roadMesh.position.z = -800; // Extend deep into the screen
+        this.roadMesh.receiveShadow = true;
         this.scene.add(this.roadMesh);
 
         // Center dashed yellow line
@@ -120,15 +137,23 @@ class Game {
         }
         this.scene.add(this.arrowsGroup);
 
-        // Side Blocks (Simple dark grey walls)
+        // Side Blocks (Simple dark grey walls with neon glow)
         this.pillarsGroup = new THREE.Group();
         const blockGeom = new THREE.BoxGeometry(8, 6, 20);
-        const blockMat = new THREE.MeshStandardMaterial({ color: 0x1A1C20 }); // Dark block
+        const blockMat = new THREE.MeshStandardMaterial({ 
+            color: 0x1A1C20,
+            roughness: 0.6,
+            metalness: 0.4,
+            emissive: 0x00B4FF,
+            emissiveIntensity: 0.2
+        });
 
         for (let i = 0; i < 40; i++) {
             for (const side of [-1, 1]) {
                 const block = new THREE.Mesh(blockGeom, blockMat);
                 block.position.set(side * 64, 3, -i * 50);
+                block.castShadow = true;
+                block.receiveShadow = true;
                 this.pillarsGroup.add(block);
             }
         }
@@ -288,6 +313,10 @@ class Game {
             const pos = this._getPos(e);
             if (!pos) return;
             pointerDown = true;
+            if (this.ui) {
+                this.ui._shopLastTouchY = pos.y;
+                this.ui._wmLastTouchY = pos.y;
+            }
 
             // UI clicks first
             if (this.state === 'MENU' || this.state === 'GAME_OVER' || this.state === 'RESULTS' || this.state === 'STORY_INTRO') {
@@ -319,6 +348,17 @@ class Game {
             }
             this.ui._shopLastTouchY = null;
 
+            // World Map scroll
+            if (this.state === 'MENU' && this.ui.showingWorldMap) {
+                if (this.ui._wmLastTouchY !== null) {
+                    const dy = this.ui._wmLastTouchY - pos.y;
+                    this.ui._wmScrollY = Math.max(0, (this.ui._wmScrollY || 0) + dy);
+                }
+                this.ui._wmLastTouchY = pos.y;
+                return;
+            }
+            this.ui._wmLastTouchY = null;
+
             if (this.state === 'PLAYING' || this.state === 'CLASH' || this.state === 'FORTRESS_ATTACK') {
                 const dx = pos.x - this.dragStartX;
                 const sensitivity = (2.0 / (GC.W * 0.7)) * (this.settings ? this.settings.sensitivity : 1.0);
@@ -330,7 +370,10 @@ class Game {
         const onUp = (e) => {
             e.preventDefault();
             pointerDown = false;
-            if (this.ui) this.ui._shopLastTouchY = null;
+            if (this.ui) {
+                this.ui._shopLastTouchY = null;
+                this.ui._wmLastTouchY = null;
+            }
         };
 
         // Attach listeners to the window so drag works across entire screen
@@ -374,6 +417,7 @@ class Game {
         if (typeof numOrLevelObj === 'object') {
             this.currentLevel = numOrLevelObj;
             this.state = 'PLAYING';
+            this.sound.playBGM();
         } else {
             const idx = numOrLevelObj - 1;
             if (idx < 0 || idx >= LEVELS.length) return;
@@ -386,6 +430,7 @@ class Game {
                 this.storyShown = true;
             } else {
                 this.state = 'PLAYING';
+                this.sound.playBGM();
             }
         }
         this.ui.showingShop = false;
@@ -465,6 +510,7 @@ class Game {
     }
 
     goToMenu() {
+        this.sound.stopBGM();
         this.state = 'MENU';
         this.currentLevel = null;
         this.ui.showingShop = false;
@@ -493,6 +539,7 @@ class Game {
             }
             if (this.ui.showingWorldMap) {
                 this.ui.showingWorldMap = false;
+                this.startLevel(this.shop.getCurrentLevel());
                 return true;
             }
             if (this.ui.showingLeaderboard) {
@@ -508,6 +555,7 @@ class Game {
     }
 
     showResults() {
+        this.sound.stopBGM();
         const coins = this.fortress.coinsEarned;
         this.shop.addCoins(coins);
         
@@ -543,6 +591,11 @@ class Game {
         };
         this.ui.rewarded2x = false;
         this.state = 'RESULTS';
+        
+        // Game Juice: Huge confetti burst and victory music
+        this.sound.victory();
+        this.particles.confetti(GC.W / 2, GC.H / 2, 80);
+
         if (typeof Android !== 'undefined' && Android.showBanner) {
             try { Android.showBanner(); } catch(e) {}
         }
@@ -561,15 +614,15 @@ class Game {
         const themes = ['meadow', 'desert', 'volcano', 'dark'];
         const chosenTheme = themes[Math.floor(random() * themes.length)];
         
-        const laneLength = 9000 + Math.floor(random() * 2000);
+        const laneLength = 4500 + Math.floor(random() * 1500);
         
         const gates = [];
         for (let y = 600; y < laneLength - 800; y += 900) {
             const leftType = random() < 0.6 ? 'multiply' : random() < 0.5 ? 'golden' : 'shield';
             const rightType = random() < 0.6 ? 'multiply' : random() < 0.5 ? 'divide' : 'subtract';
             
-            const leftVal = leftType === 'multiply' ? Math.floor(random() * 4) + 4 : 0;
-            const rightVal = rightType === 'divide' ? 2 : rightType === 'subtract' ? Math.floor(random() * 10) + 3 : 0;
+            const leftVal = leftType === 'multiply' ? Math.floor(random() * 3) + 3 : 0;
+            const rightVal = rightType === 'multiply' ? Math.floor(random() * 2) + 2 : rightType === 'divide' ? 2 : rightType === 'subtract' ? Math.floor(random() * 10) + 3 : 0;
             
             gates.push({
                 y: y,
@@ -581,7 +634,7 @@ class Game {
                 right: { 
                     type: rightType, 
                     value: rightVal, 
-                    label: rightType === 'divide' ? '÷2' : rightType === 'subtract' ? `-${rightVal}` : 'SHIELD' 
+                    label: rightType === 'multiply' ? `×${rightVal}` : rightType === 'divide' ? '÷2' : rightType === 'subtract' ? `-${rightVal}` : 'SHIELD' 
                 }
             });
         }
@@ -617,17 +670,17 @@ class Game {
         
         const enemies = [];
         for (let y = 2000; y < laneLength - 1200; y += 2200) {
-            const isBoss = random() < 0.4;
+            const isBoss = random() < 0.2;
             enemies.push({
                 y: y,
-                count: 100 + Math.floor(random() * 150),
+                count: 40 + Math.floor(random() * 50),
                 type: isBoss ? 'split_boss' : 'normal'
             });
         }
         
         const phases = [
-            { hp: 1000 + Math.floor(random() * 1000), label: 'Daily Outer Gate', theme: chosenTheme },
-            { hp: 1200 + Math.floor(random() * 800), label: 'Daily Inner Core', theme: 'boss' }
+            { hp: 400 + Math.floor(random() * 200), label: 'Daily Outer Gate', theme: chosenTheme },
+            { hp: 500 + Math.floor(random() * 300), label: 'Daily Inner Core', theme: 'boss' }
         ];
         
         return {
@@ -707,6 +760,7 @@ class Game {
                 this.screenFx.pulseVignette('#FF8800', 999);
             }
             if (this.crowd.count <= 0) {
+                this.sound.stopBGM();
                 this.state = 'GAME_OVER';
                 if (typeof Android !== 'undefined' && Android.showBanner) {
                     try { Android.showBanner(); } catch(e) {}
@@ -722,6 +776,8 @@ class Game {
             this.enemies.update(dt, this.crowd.worldY);
             if (this.crowd.count <= 0) {
                 this.screenFx.pulseVignette('transparent', 0);
+                this.sound.stopBGM();
+                this.sound.gameOver();
                 this.state = 'GAME_OVER';
                 if (typeof Android !== 'undefined' && Android.showBanner) {
                     try { Android.showBanner(); } catch(e) {}
@@ -734,6 +790,7 @@ class Game {
                 this.screenFx.pulseVignette('transparent', 0);
             }
             if (this.crowd.count <= 0) {
+                this.sound.stopBGM();
                 this.state = 'GAME_OVER';
                 if (typeof Android !== 'undefined' && Android.showBanner) {
                     try { Android.showBanner(); } catch(e) {}
@@ -789,6 +846,11 @@ class Game {
         
         // Always look ahead of the crowd along the track
         this.camera.lookAt(0, 0, crowdZ - 50);
+
+        if (this.dirLight) {
+            this.dirLight.position.z = this.camera.position.z - 50;
+            this.dirLight.target.position.z = crowdZ - 50;
+        }
 
         // Slide city background with camera
         this.cityGroup.position.z = this.camera.position.z - 1000;
@@ -871,6 +933,7 @@ class Game {
             this.enemies.draw(ctx, this.crowd.worldY);
             this.fortress.draw(ctx, this.crowd.worldY);
             this.particles.draw(ctx);
+            this.floatingText.draw(ctx);
             
             this.combo.draw(ctx);
             if (this.state === 'STORY_INTRO') {

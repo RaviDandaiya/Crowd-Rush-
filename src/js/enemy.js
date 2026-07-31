@@ -132,6 +132,13 @@ class EnemyMob {
         unitGroup.position.z = Math.sin(angle) * radius;
         unitGroup.position.y = 0;
         
+        unitGroup.traverse(child => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+
         this.group.add(unitGroup);
         
         return {
