@@ -618,10 +618,18 @@ class Game {
         
         const gates = [];
         for (let y = 600; y < laneLength - 800; y += 900) {
-            const leftType = random() < 0.6 ? 'multiply' : random() < 0.5 ? 'golden' : 'shield';
+            const leftTypeRoll = random();
+            let leftType = 'multiply';
+            if (leftTypeRoll > 0.6) {
+                const subRoll = random();
+                if (subRoll < 0.33) leftType = 'golden';
+                else if (subRoll < 0.66) leftType = 'giant';
+                else leftType = 'shield';
+            }
+
             const rightType = random() < 0.6 ? 'multiply' : random() < 0.5 ? 'divide' : 'subtract';
             
-            const leftVal = leftType === 'multiply' ? Math.floor(random() * 3) + 3 : 0;
+            const leftVal = leftType === 'multiply' ? Math.floor(random() * 3) + 3 : (leftType === 'giant' ? Math.floor(random() * 3) + 1 : 0);
             const rightVal = rightType === 'multiply' ? Math.floor(random() * 2) + 2 : rightType === 'divide' ? 2 : rightType === 'subtract' ? Math.floor(random() * 10) + 3 : 0;
             
             gates.push({
@@ -629,7 +637,7 @@ class Game {
                 left: { 
                     type: leftType, 
                     value: leftVal, 
-                    label: leftType === 'multiply' ? `×${leftVal}` : leftType === 'golden' ? 'GOLDEN' : 'SHIELD' 
+                    label: leftType === 'multiply' ? `×${leftVal}` : leftType === 'golden' ? 'GOLDEN' : leftType === 'giant' ? `👹 +${leftVal}` : 'SHIELD' 
                 },
                 right: { 
                     type: rightType, 

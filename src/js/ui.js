@@ -354,28 +354,40 @@ class UI {
         ctx.translate(cx, cy);
         ctx.scale(this._badgePop, this._badgePop);
 
+        let displayStr = Utils.formatNumber(count);
+        let giants = 0;
+        if (this.game.crowd) {
+            giants = this.game.crowd.units.filter(u => u.alive && u.type === 'giant').length;
+            if (giants > 0) {
+                displayStr = `${displayStr} (👹${giants})`;
+            }
+        }
+        
+        ctx.font = 'bold 16px "Outfit", sans-serif';
+        const textWidth = Math.max(56, ctx.measureText(displayStr).width + 20);
+        const halfW = textWidth / 2;
+
         // Shadow
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.beginPath(); ctx.roundRect(-30, -16, 60, 32, 8); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(-halfW - 2, -16, textWidth + 4, 32, 8); ctx.fill();
 
         // Blue badge background (or themed)
         const bg = ctx.createLinearGradient(0, -16, 0, 16);
         bg.addColorStop(0, this.themeColors.bg);
         bg.addColorStop(1, this.themeColors.primary);
         ctx.fillStyle = bg;
-        ctx.beginPath(); ctx.roundRect(-28, -14, 56, 28, 7); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(-halfW, -14, textWidth, 28, 7); ctx.fill();
 
         // Highlight
         ctx.fillStyle = 'rgba(255,255,255,0.25)';
-        ctx.beginPath(); ctx.roundRect(-28, -14, 56, 12, 7); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(-halfW, -14, textWidth, 12, 7); ctx.fill();
 
         // Count text
         ctx.fillStyle = '#FFF';
-        ctx.font = 'bold 16px "Outfit", sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.shadowColor = 'rgba(0,0,0,0.4)';
         ctx.shadowBlur = 3;
-        ctx.fillText(Utils.formatNumber(count), 0, 1);
+        ctx.fillText(displayStr, 0, 1);
 
         ctx.restore();
     }

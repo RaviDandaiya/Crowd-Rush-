@@ -35,10 +35,31 @@ class ObstacleManager {
                         new THREE.MeshBasicMaterial({color: obs.isLava ? 0xFF3300 : 0x111111})
                     );
                 } else if (obs.type === 'hammer') {
-                    mesh = new THREE.Mesh(
-                        new THREE.BoxGeometry(10, 5, 5),
-                        new THREE.MeshStandardMaterial({color: 0x444444})
+                    mesh = new THREE.Group();
+                    
+                    // Hammer Head
+                    const head = new THREE.Mesh(
+                        new THREE.BoxGeometry(12, 6, 8),
+                        new THREE.MeshStandardMaterial({color: 0x555555, metalness: 0.6})
                     );
+                    mesh.add(head);
+                    
+                    // Hammer Handle (extending upwards)
+                    const handle = new THREE.Mesh(
+                        new THREE.CylinderGeometry(1.5, 1.5, 22, 8),
+                        new THREE.MeshStandardMaterial({color: 0x4A3728}) // Dark wood/metal handle
+                    );
+                    handle.position.y = 11;
+                    mesh.add(handle);
+                    
+                    // Pivot joint at the top
+                    const pivot = new THREE.Mesh(
+                        new THREE.CylinderGeometry(2.5, 2.5, 10, 16),
+                        new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.8})
+                    );
+                    pivot.rotation.x = Math.PI / 2;
+                    pivot.position.y = 22;
+                    mesh.add(pivot);
                 } else {
                     mesh = new THREE.Mesh(new THREE.BoxGeometry(5,5,5), new THREE.MeshBasicMaterial({color:0xFF0000}));
                 }
@@ -84,7 +105,9 @@ class ObstacleManager {
                 obsY = pivotY - Math.cos(angle) * armLength;
                 obsX += Math.sin(angle) * armLength;
                 
-                obs.mesh.rotation.z = -angle; // Rotate the block to match swing
+                // The handle extends along local +Y. To point it back to the pivot, 
+                // we rotate it by exactly 'angle' (not '-angle').
+                obs.mesh.rotation.z = angle; 
             } else if (obs.type === 'pit') {
                 const offset = Math.sin(obs.phase * 0.7) * 0.5;
                 obsX = ((obs.laneX || 0) + offset) * 35;
@@ -161,6 +184,29 @@ class ObstacleManager {
             }
 
             if (isHit) {
+                if (u.type === 'giant' && !isPit) {
+                    // Giant crushes the physical obstacle!
+                    obs.active = false;
+                    obs.mesh.visible = false;
+                    u.hp--;
+                    if (u.hp <= 0) {
+                        u.alive = false;
+                        u.targetScale = 0;
+                        removed++;
+                    }
+                    if (this.game.particles) {
+                        this.vec.set(obsX, 2, obsZ);
+                        this.vec.project(this.game.camera);
+                        const sx = (this.vec.x * 0.5 + 0.5) * GC.W;
+                        const sy = -(this.vec.y * 0.5 - 0.5) * GC.H;
+                        this.game.particles.burst(sx, sy, 30, ['#888888', '#AAAAAA', '#FF22FF'], 80, 200, 0.6, 1.2, 3, 6, 'circle', 100);
+                        if (this.game.floatingText) {
+                            this.game.floatingText.spawn('CRUSHED!', sx, sy - 30, '#FF22FF', 30);
+                        }
+                    }
+                    break; // Obstacle destroyed, stop checking other units
+                }
+
                 const isProtected = this.game.crowd.shielded || this.game.feverActive;
                 if (!isProtected && removed < 2) {
                     u.alive = false;

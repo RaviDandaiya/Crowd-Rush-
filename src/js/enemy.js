@@ -468,8 +468,13 @@ class EnemyManager {
         while (this.clashAcc >= interval) {
             this.clashAcc -= interval;
             
+            // Calculate effective crowd strength (Giants count as 10 normal units for damage)
+            let effectiveCrowdCount = this.game.crowd.count;
+            const giantCount = this.game.crowd.units.filter(u => u.alive && u.type === 'giant').length;
+            effectiveCrowdCount += (giantCount * 10);
+
             // Enemy removes units proportional to crowd count (attacker strength)
-            const enemyTickRemove = Math.max(1, Math.ceil(this.game.crowd.count / 12));
+            const enemyTickRemove = Math.max(1, Math.ceil(effectiveCrowdCount / 12));
             // Crowd damage proportional to enemy count (attacker strength)
             const crowdTickRemove = Math.max(1, Math.ceil(mob.count / 12));
             

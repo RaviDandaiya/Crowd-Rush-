@@ -788,6 +788,23 @@ class Crowd {
 
     removeUnits(n) {
         let removed = 0;
+        
+        // First pass: try to remove 'normal' units
+        for (let i = this.units.length - 1; i >= 0 && removed < n; i--) {
+            if (this.units[i].alive && this.units[i].type !== 'giant') {
+                const u = this.units[i];
+                u.alive = false;
+                u.targetScale = 0;
+                // Death burst: fly right (crowd side)
+                u.deathVx = Utils.randomRange(5, 20);
+                u.deathVz = Utils.randomRange(-10, 10);
+                u.deathVy = Utils.randomRange(8, 18);
+                u.deathSpin = Utils.randomRange(-8, 8);
+                removed++;
+            }
+        }
+        
+        // Second pass: if we STILL need to remove units, remove giants
         for (let i = this.units.length - 1; i >= 0 && removed < n; i--) {
             if (this.units[i].alive) {
                 const u = this.units[i];
@@ -801,6 +818,7 @@ class Crowd {
                 removed++;
             }
         }
+        
         this.count = Math.max(0, this.count - n);
     }
 
