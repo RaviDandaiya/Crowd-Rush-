@@ -1073,11 +1073,14 @@ class Crowd {
                     const t = u.ringAngle;
                     
                     // Unique round fighting style: Crowd surrounds the enemy!
-                    // The enemy is at local Z = -3.75
+                    // The enemy is at local Z = -3.75, Fortress is at -6.0
                     const orbitRadius = 4.0 + (i % 3) * 1.8; // Concentric rings
                     
+                    const isFortress = this.game.state === 'FORTRESS_ATTACK';
+                    const enemyZOffset = isFortress ? -6.0 : -3.75;
+                    
                     tx = Math.cos(t) * orbitRadius;
-                    tz = Math.sin(t) * orbitRadius - 3.75; // Offset to center on enemy
+                    tz = Math.sin(t) * orbitRadius + enemyZOffset; // Offset to center on enemy/fortress
                     
                     // Flat on the ground (no up-down animation when clashing)
                     u.mesh.position.y = u.type === 'giant' ? 4.5 : 2.2;

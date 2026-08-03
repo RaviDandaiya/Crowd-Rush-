@@ -359,7 +359,7 @@ class Game {
             }
             this.ui._wmLastTouchY = null;
 
-            if (this.state === 'PLAYING' || this.state === 'CLASH' || this.state === 'FORTRESS_ATTACK') {
+            if (this.state === 'PLAYING' || this.state === 'CLASH') {
                 const dx = pos.x - this.dragStartX;
                 const sensitivity = (2.0 / (GC.W * 0.7)) * (this.settings ? this.settings.sensitivity : 1.0);
                 const target = this.dragStartLaneX + dx * sensitivity;
@@ -766,6 +766,7 @@ class Game {
                 this.fortress.startAttack();
                 this.state = 'FORTRESS_ATTACK';
                 this.screenFx.pulseVignette('#FF8800', 999);
+                this.crowd.targetLaneX = 0; // Lock to center for the round fight
             }
             if (this.crowd.count <= 0) {
                 this.sound.stopBGM();

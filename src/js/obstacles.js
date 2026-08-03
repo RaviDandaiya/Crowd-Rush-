@@ -46,10 +46,10 @@ class ObstacleManager {
                     
                     // Hammer Handle (extending upwards)
                     const handle = new THREE.Mesh(
-                        new THREE.CylinderGeometry(1.5, 1.5, 22, 8),
+                        new THREE.CylinderGeometry(1.5, 1.5, 24, 8),
                         new THREE.MeshStandardMaterial({color: 0x4A3728}) // Dark wood/metal handle
                     );
-                    handle.position.y = 11;
+                    handle.position.y = 12;
                     mesh.add(handle);
                     
                     // Pivot joint at the top
@@ -58,7 +58,7 @@ class ObstacleManager {
                         new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.8})
                     );
                     pivot.rotation.x = Math.PI / 2;
-                    pivot.position.y = 22;
+                    pivot.position.y = 24;
                     mesh.add(pivot);
                 } else {
                     mesh = new THREE.Mesh(new THREE.BoxGeometry(5,5,5), new THREE.MeshBasicMaterial({color:0xFF0000}));
@@ -101,7 +101,7 @@ class ObstacleManager {
                 obsX = (obs.laneX || 0) * 35;
                 
                 const pivotY = 25;
-                const armLength = 22;
+                const armLength = 24;
                 obsY = pivotY - Math.cos(angle) * armLength;
                 obsX += Math.sin(angle) * armLength;
                 
