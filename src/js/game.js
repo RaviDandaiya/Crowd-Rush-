@@ -83,7 +83,15 @@ class Game {
         this.lastTime = 0;
         this.storyShown = false;
         
-        // Ad System Mock
+        // Slow-mo & Dynamic FOV juice
+        this.timeScale = 1.0;
+        this.slowMoTimer = 0;
+        this.cameraFov = 60;
+        this.hasSteered = false;
+
+        // Smart Ad Management (Non-disturbing capping)
+        this.completedLevelsCount = 0;
+        this.lastInterstitialTime = Date.now();
         this.adPlaying = false;
         this.adTimer = 0;
         this.adRewardCallback = null;
@@ -361,6 +369,7 @@ class Game {
 
             if (this.state === 'PLAYING' || this.state === 'CLASH') {
                 const dx = pos.x - this.dragStartX;
+                if (Math.abs(dx) > 6) this.hasSteered = true;
                 const sensitivity = (2.0 / (GC.W * 0.7)) * (this.settings ? this.settings.sensitivity : 1.0);
                 const target = this.dragStartLaneX + dx * sensitivity;
                 this.crowd.targetLaneX = Utils.clamp(target, -1.0, 1.0);
@@ -414,6 +423,9 @@ class Game {
     }
 
     startLevel(numOrLevelObj) {
+        if (typeof Android !== 'undefined' && Android.hideBanner) {
+            try { Android.hideBanner(); } catch(e) {}
+        }
         if (typeof numOrLevelObj === 'object') {
             this.currentLevel = numOrLevelObj;
             this.state = 'PLAYING';
@@ -421,9 +433,6 @@ class Game {
         } else {
             const idx = numOrLevelObj - 1;
             if (idx < 0 || idx >= LEVELS.length) return;
-            if (typeof Android !== 'undefined' && Android.hideBanner) {
-                try { Android.hideBanner(); } catch(e) {}
-            }
             this.currentLevel = LEVELS[idx];
             if (numOrLevelObj === 1 && !this.storyShown) {
                 this.state = 'STORY_INTRO';
@@ -438,9 +447,17 @@ class Game {
         this.ui.showingWorldMap = false;
         this.ui.showingSettings = false;
 
+        // Reset Level 1 FTUE steering hint
+        if (this.currentLevel && this.currentLevel.id === 1) {
+            this.hasSteered = false;
+        }
+
         this.feverGauge = 0;
         this.feverActive = false;
         this.feverTimer = 0;
+        this.cameraFov = 60;
+        this.slowMoTimer = 0;
+        this.timeScale = 1.0;
 
         const startCount = this.shop.getStartingCrowd();
         this.crowd.init(startCount, this.shop.getCurrentSkin());
@@ -457,6 +474,19 @@ class Game {
         
         // Reset camera position
         this.camera.position.set(0, 80, 100);
+    }
+
+    triggerSlowMo(duration = 0.18, scale = 0.4) {
+        this.slowMoTimer = duration;
+        this.timeScale = scale;
+    }
+
+    kickCameraFov(fov = 68) {
+        this.cameraFov = fov;
+        if (this.camera) {
+            this.camera.fov = fov;
+            this.camera.updateProjectionMatrix();
+        }
     }
 
     revive() {
@@ -592,9 +622,25 @@ class Game {
         this.ui.rewarded2x = false;
         this.state = 'RESULTS';
         
-        // Game Juice: Huge confetti burst and victory music
+        // Game Juice: Huge confetti burst, crowd cheer, and victory fanfare
         this.sound.victory();
+        if (this.sound.crowdCheer) this.sound.crowdCheer();
         this.particles.confetti(GC.W / 2, GC.H / 2, 80);
+
+        // Smart non-disturbing interstitial ads:
+        // 1. Levels 1 & 2 are 100% ad-free so players get hooked!
+        // 2. Only show after every 3 level completions
+        // 3. Minimum 90s cooldown timer
+        this.completedLevelsCount = (this.completedLevelsCount || 0) + 1;
+        const now = Date.now();
+        if (this.currentLevel && this.currentLevel.id > 2 && (this.completedLevelsCount % 3 === 0) && (now - this.lastInterstitialTime >= 90000)) {
+            this.lastInterstitialTime = now;
+            setTimeout(() => {
+                if (typeof Android !== 'undefined' && Android.showAd) {
+                    try { Android.showAd('Interstitial_Android'); } catch(e) {}
+                }
+            }, 900);
+        }
 
         if (typeof Android !== 'undefined' && Android.showBanner) {
             try { Android.showBanner(); } catch(e) {}
@@ -715,8 +761,17 @@ class Game {
     }
 
     loop(ts) {
-        const dt = Math.min((ts - this.lastTime) / 1000, 0.05);
+        let dt = Math.min((ts - this.lastTime) / 1000, 0.05);
         this.lastTime = ts;
+
+        // Slow-Mo time dilation juice
+        if (this.slowMoTimer > 0) {
+            this.slowMoTimer -= dt;
+            dt *= this.timeScale;
+            this.timeScale = Utils.lerp(this.timeScale, 1.0, 0.15);
+            if (this.slowMoTimer <= 0) this.timeScale = 1.0;
+        }
+
         this.update(dt);
         this.render();
         requestAnimationFrame(t => this.loop(t));
@@ -728,6 +783,13 @@ class Game {
         this.floatingText.update(dt);
         this.screenFx.update(dt);
         this.combo.update(dt);
+
+        // Dynamic camera FOV lerp
+        if (this.camera && Math.abs(this.cameraFov - 60) > 0.1) {
+            this.cameraFov = Utils.lerp(this.cameraFov, 60, dt * 6);
+            this.camera.fov = this.cameraFov;
+            this.camera.updateProjectionMatrix();
+        }
 
         // Fever Timer Update
         if (this.feverActive) {

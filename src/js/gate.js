@@ -148,17 +148,21 @@ class GateManager {
             const before = crowd.count;
             crowd.applyGate('multiply', finalVal);
             const gained = crowd.count - before;
+            if (this.game.triggerSlowMo) this.game.triggerSlowMo(0.22, 0.3);
+            if (this.game.kickCameraFov) this.game.kickCameraFov(70);
+            if (navigator.vibrate) { try { navigator.vibrate([30, 20, 50]); } catch(e) {} }
             fx.flash('rgba(255,215,0,0.6)', 0.4);
-            fx.shake(6, 0.3);
-            parts.confetti(sx, sy, 60);
-            parts.coinExplosion(sx, sy, 40);
+            fx.shake(7, 0.35);
+            parts.confetti(sx, sy, 65);
+            parts.coinExplosion(sx, sy, 45);
             this.game.floatingText.spawn(`✨ ×${finalVal} ALL! +${gained}`, sx, sy - 30, '#FFD700');
-            if (sound) sound.gatePositive();
+            if (sound) sound.gatePositive(1.6);
 
         } else if (gate.type === 'shield') {
             crowd.activateShield(30);
+            if (this.game.kickCameraFov) this.game.kickCameraFov(65);
+            if (navigator.vibrate) { try { navigator.vibrate(25); } catch(e) {} }
             fx.flash('rgba(0,200,255,0.5)', 0.4);
-            parts.burst(sx, sy, 30, ['#00CCFF','#00FFEE','#FFFFFF'], 80, 200, 0.6, 1.2, 3, 6, 'circle', 100);
             parts.burst(sx, sy, 30, ['#00CCFF','#00FFEE','#FFFFFF'], 80, 200, 0.6, 1.2, 3, 6, 'circle', 100);
             if (combo) combo.onPositive();
             this.game.floatingText.spawn('🛡️ SHIELDED!', sx, sy - 30, '#00CCFF');
@@ -167,9 +171,12 @@ class GateManager {
         } else if (gate.type === 'explode') {
             const mult = combo ? combo.onPositive() : 1;
             const cleared = this.game.enemies.explodeNearby(crowd.worldY, 600 * mult);
+            if (this.game.triggerSlowMo) this.game.triggerSlowMo(0.2, 0.35);
+            if (this.game.kickCameraFov) this.game.kickCameraFov(72);
+            if (navigator.vibrate) { try { navigator.vibrate([50, 30, 60]); } catch(e) {} }
             fx.flash('rgba(255,100,0,0.6)', 0.5);
-            fx.shake(10, 0.5);
-            parts.burst(sx, sy, 50, ['#FF4400','#FF8800','#FFCC00'], 120, 350, 0.6, 1.5, 3, 8, 'circle', 200);
+            fx.shake(12, 0.5);
+            parts.burst(sx, sy, 55, ['#FF4400','#FF8800','#FFCC00'], 120, 350, 0.6, 1.5, 3, 8, 'circle', 200);
             this.game.floatingText.spawn(`💥 CLEARED ${cleared}!`, sx, sy - 30, '#FF4400');
             if (sound) sound.explode();
 
@@ -178,6 +185,9 @@ class GateManager {
             const jackpotAmount = Math.round(50 * mult);
             crowd.addUnits(jackpotAmount);
             if (this.game.addFever) this.game.addFever(30);
+            if (this.game.triggerSlowMo) this.game.triggerSlowMo(0.25, 0.35);
+            if (this.game.kickCameraFov) this.game.kickCameraFov(72);
+            if (navigator.vibrate) { try { navigator.vibrate([40, 20, 50]); } catch(e) {} }
             fx.flash('rgba(255,0,170,0.6)', 0.5);
             fx.shake(8, 0.4);
             parts.confetti(sx, sy, 70);
@@ -190,11 +200,14 @@ class GateManager {
             const num = Math.round(gate.value * mult);
             crowd.addUnits(num, gate.type);
             if (this.game.addFever) this.game.addFever(15);
+            if (this.game.triggerSlowMo) this.game.triggerSlowMo(0.16, 0.45);
+            if (this.game.kickCameraFov) this.game.kickCameraFov(67);
+            if (navigator.vibrate) { try { navigator.vibrate(30); } catch(e) {} }
             const color = gate.type === 'giant' ? '#FF22FF' : '#55FF55';
             fx.flash(`rgba(${gate.type==='giant'?'255,34,255':'85,255,85'},0.4)`, 0.3);
             parts.burst(sx, sy, 30, [color, '#FFFFFF'], 80, 200, 0.6, 1.2, 3, 6, 'circle', 100);
             this.game.floatingText.spawn(`+${num} ${gate.type.toUpperCase()}S!`, sx, sy - 30, color);
-            if (sound) sound.gatePositive();
+            if (sound) sound.gatePositive(1.3);
 
         } else if (gate.isPositive) {
             const mult = combo ? combo.onPositive() : 1;
@@ -202,20 +215,30 @@ class GateManager {
             crowd.applyGate(gate.type, Math.round(gate.value * mult));
             const gained = crowd.count - before;
             if (this.game.addFever) this.game.addFever(12);
+            
+            const pitch = 1.0 + Math.min((combo ? (combo.comboCount || 0) : 0) * 0.12, 0.9);
+            if (gained >= 15 || mult > 1) {
+                if (this.game.triggerSlowMo) this.game.triggerSlowMo(0.14, 0.5);
+                if (this.game.kickCameraFov) this.game.kickCameraFov(66);
+            }
+            if (navigator.vibrate) { try { navigator.vibrate(20); } catch(e) {} }
+
             parts.confetti(sx, sy, 35);
             fx.flash('rgba(0,255,100,0.4)', 0.3);
-            fx.shake(2, 0.2); // Add subtle screen shake on normal positive gates
+            fx.shake(2.5, 0.2);
             if (mult > 1 && combo) {
                 this.game.floatingText.spawn(`+${gained} ×${mult}COMBO!`, sx, sy - 30, '#FFD700');
             } else {
                 this.game.floatingText.spawn(`+${gained}`, sx, sy - 30, '#00FF88');
             }
-            if (sound) sound.gatePositive();
+            if (sound) sound.gatePositive(pitch);
 
         } else {
             const before = crowd.count;
             crowd.applyGate(gate.type, gate.value);
             const lost = before - crowd.count;
+            if (this.game.kickCameraFov) this.game.kickCameraFov(56);
+            if (navigator.vibrate) { try { navigator.vibrate([40, 30, 40]); } catch(e) {} }
             parts.burst(sx, sy, 25, ['#FF0000','#FF3333','#FF6666','#CC0000'], 60, 200, 0.5, 1, 2, 5, 'circle', 200);
             fx.flash('rgba(255,0,0,0.4)', 0.3);
             fx.shake(6, 0.3);

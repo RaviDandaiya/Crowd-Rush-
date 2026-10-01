@@ -25,22 +25,48 @@ class SoundManager {
         try { fn(ctx); } catch(e) {}
     }
 
-    // Positive gate hit — ascending chime
-    gatePositive() {
+    // Positive gate hit — ascending chime with dynamic pitch & bass punch
+    gatePositive(pitchMult = 1) {
         this._play(ctx => {
             const t = ctx.currentTime;
-            const freqs = [440, 554, 659, 880];
+            const mult = Math.min(Math.max(pitchMult || 1, 0.7), 2.5);
+            const freqs = [440 * mult, 554 * mult, 659 * mult, 880 * mult];
             freqs.forEach((f, i) => {
                 const o = ctx.createOscillator();
                 const g = ctx.createGain();
                 o.connect(g); g.connect(ctx.destination);
                 o.frequency.value = f;
                 o.type = 'sine';
-                g.gain.setValueAtTime(0.18, t + i * 0.07);
-                g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.07 + 0.25);
-                o.start(t + i * 0.07);
-                o.stop(t + i * 0.07 + 0.3);
+                g.gain.setValueAtTime(0.2, t + i * 0.06);
+                g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.06 + 0.28);
+                o.start(t + i * 0.06);
+                o.stop(t + i * 0.06 + 0.32);
             });
+            // Visceral bass thud
+            const bass = ctx.createOscillator();
+            const bassG = ctx.createGain();
+            bass.connect(bassG); bassG.connect(ctx.destination);
+            bass.frequency.setValueAtTime(140, t);
+            bass.frequency.exponentialRampToValueAtTime(45, t + 0.16);
+            bassG.gain.setValueAtTime(0.22, t);
+            bassG.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+            bass.start(t); bass.stop(t + 0.2);
+        });
+    }
+
+    crowdCheer() {
+        this._play(ctx => {
+            const t = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(220, t);
+            osc.frequency.linearRampToValueAtTime(330, t + 0.3);
+            gain.gain.setValueAtTime(0.05, t);
+            gain.gain.linearRampToValueAtTime(0.18, t + 0.2);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(t); osc.stop(t + 0.85);
         });
     }
 

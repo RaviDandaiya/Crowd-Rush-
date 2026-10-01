@@ -156,15 +156,51 @@ class UI {
             ctx.restore();
         }
         
-        // === 10. FLOATING TEXT (GAME JUICE) ===
+        // === 10. FTUE STEERING TUTORIAL HINT (Level 1) ===
+        if (this.game.state === 'PLAYING' && this.game.currentLevel && this.game.currentLevel.id === 1 && !this.game.hasSteered) {
+            this._drawSteeringHint(ctx, w);
+        }
+
+        // === 11. FLOATING TEXT (GAME JUICE) ===
         if (this.game.floatingText) {
             this.game.floatingText.draw(ctx);
         }
 
-        // === 11. VICTORY BANNER ===
+        // === 12. VICTORY BANNER ===
         if (this.game.fortress.state === 'destroyed') {
             this._drawVictoryBanner(ctx, w);
         }
+    }
+
+    _drawSteeringHint(ctx, w) {
+        ctx.save();
+        const hintY = GC.H * 0.74;
+        const sway = Math.sin(this.t * 5) * 32;
+
+        // Glowing pill background
+        const bw = 190, bh = 40;
+        ctx.fillStyle = 'rgba(10, 20, 45, 0.82)';
+        ctx.strokeStyle = '#00E5FF';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#00E5FF';
+        ctx.shadowBlur = 16;
+        ctx.beginPath();
+        ctx.roundRect(w / 2 - bw / 2, hintY - bh / 2, bw, bh, 20);
+        ctx.fill();
+        ctx.stroke();
+
+        // Animated hand pointer
+        ctx.font = '22px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowBlur = 0;
+        ctx.fillText('👆', w / 2 + sway, hintY - 34);
+
+        // Text
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 14px "Outfit", sans-serif';
+        ctx.fillText('↔ Drag to Steer', w / 2, hintY);
+        ctx.restore();
     }
 
     _drawProgressBar(ctx, w) {
